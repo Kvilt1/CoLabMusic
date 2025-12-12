@@ -1,7 +1,7 @@
 
-import React, { createContext, useState, useEffect, useRef, useContext } from 'react';
-import { groups as mockGroups, songs } from '../data/mockData';
+import React, { createContext, useState, useEffect, useRef, useContext, useCallback } from 'react';
 import { Howl, Howler } from 'howler';
+import { supabase } from '../supabaseClient';
 
 const PlayerContext = createContext();
 
@@ -16,7 +16,8 @@ export const PlayerProvider = ({ children }) => {
     const [duration, setDuration] = useState(0);
 
     // Vaults State
-    const [groups, setGroups] = useState(mockGroups);
+    const [groups, setGroups] = useState([]);
+    const [allSongs, setAllSongs] = useState([]);
 
     // Queue System
     const [queue, setQueue] = useState([]);
@@ -43,6 +44,149 @@ export const PlayerProvider = ({ children }) => {
     useEffect(() => { currentSongRef.current = currentSong; }, [currentSong]);
     useEffect(() => { repeatModeRef.current = repeatMode; }, [repeatMode]);
 
+    // Data Fetching & Realtime
+    useEffect(() => {
+        const fetchData = async () => {
+            const { data: vaultsData } = await supabase.from('vaults').select('*').order('created_at', { ascending: true });
+            if (vaultsData) setGroups(vaultsData);
+
+            const { data: songsData } = await supabase.from('songs').select('*').order('created_at', { ascending: false });
+            if (songsData) setAllSongs(songsData);
+        };
+
+        fetchData();
+
+        // Realtime Subscription
+        const channel = supabase.channel('schema-db-changes')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'vaults' },
+                (payload) => {
+                    if (payload.eventType === 'INSERT') {
+                        setGroups(prev => {
+                            if (prev.some(g => g.id === payload.new.id)) return prev;
+                            return [...prev, payload.new];
+                        });
+                    } else if (payload.eventType === 'DELETE') {
+                        setGroups(prev => prev.filter(g => g.id !== payload.old.id));
+                    }
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'songs' },
+                (payload) => {
+                    if (payload.eventType === 'INSERT') {
+                        setAllSongs(prev => [payload.new, ...prev]);
+                    } // Handle other events if needed
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, []);
+
+    // Circular dependency breaker
+    const nextSongRef = useRef(null);
+
+    const _playInternal = useCallback((song) => {
+        if (soundRef.current) {
+            soundRef.current.unload();
+        }
+
+        const sound = new Howl({
+            src: [song.url],
+            html5: true,
+            volume: volume,
+            onplay: () => setIsPlaying(true),
+            onpause: () => setIsPlaying(false),
+            onend: () => {
+                setIsPlaying(false);
+                if (nextSongRef.current) nextSongRef.current();
+            },
+            onloaderror: (id, err) => console.error('Load Error:', err),
+            onplayerror: (id, err) => {
+                sound.once('unlock', () => {
+                    sound.play();
+                });
+            }
+        });
+
+        soundRef.current = sound;
+        setCurrentSong(song);
+        sound.play();
+
+        if (sound.state() === 'loaded') {
+            setDuration(sound.duration());
+        } else {
+            sound.once('load', () => {
+                setDuration(sound.duration());
+            });
+        }
+    }, [volume]);
+
+    const togglePlay = useCallback(() => {
+        if (soundRef.current) {
+            if (isPlaying) {
+                soundRef.current.pause();
+            } else {
+                soundRef.current.play();
+            }
+        } else if (queue.length > 0 && queueIndex >= 0) {
+            _playInternal(queue[queueIndex]);
+        } else if (queue.length > 0 && queueIndex === -1) {
+            setQueueIndex(0);
+            _playInternal(queue[0]);
+        }
+    }, [isPlaying, queue, queueIndex, _playInternal]);
+
+    const nextSong = useCallback(() => {
+        const currentQ = queueRef.current;
+        const currentIdx = queueIndexRef.current;
+        const mode = repeatModeRef.current;
+
+        if (currentQ.length === 0) return;
+
+        let nextIdx = currentIdx + 1;
+        if (nextIdx >= currentQ.length) {
+            if (mode === 1 || mode === 2) {
+                nextIdx = 0;
+            } else {
+                setIsPlaying(false);
+                return;
+            }
+        }
+
+        setQueueIndex(nextIdx);
+        _playInternal(currentQ[nextIdx]);
+    }, [_playInternal]);
+
+    const prevSong = useCallback(() => {
+        const currentQ = queueRef.current;
+        const currentIdx = queueIndexRef.current;
+        const sound = soundRef.current;
+
+        if (sound && sound.seek() > 3) {
+            sound.seek(0);
+            return;
+        }
+
+        let prevIdx = currentIdx - 1;
+        if (prevIdx < 0) {
+            if (currentQ.length > 0) prevIdx = currentQ.length - 1;
+            else prevIdx = 0;
+        }
+
+        setQueueIndex(prevIdx);
+        if (currentQ[prevIdx]) {
+            _playInternal(currentQ[prevIdx]);
+        }
+    }, [_playInternal]);
+
+    useEffect(() => { nextSongRef.current = nextSong; }, [nextSong]);
+
     // Global Volume
     useEffect(() => {
         Howler.volume(volume);
@@ -67,12 +211,59 @@ export const PlayerProvider = ({ children }) => {
         return () => cancelAnimationFrame(rafRef.current);
     }, [isPlaying]);
 
+    // Keyboard Shortcuts (Spacebar)
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.code === 'Space') {
+                const activeTag = document.activeElement.tagName;
+                // Don't toggle if typing in input/textarea
+                if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+
+                e.preventDefault(); // Prevent scrolling
+                togglePlay();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [togglePlay]); // Re-attach when togglePlay changes
+
+    // Media Session API (Hardware Keys)
+    useEffect(() => {
+        if ('mediaSession' in navigator) {
+            // Update Metadata
+            if (currentSong && 'MediaMetadata' in window) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: currentSong.title,
+                    artist: currentSong.artist || 'Unknown Artist',
+                    album: currentSong.album || 'Unknown Album',
+                    artwork: [
+                        { src: currentSong.cover || '', sizes: '512x512', type: 'image/png' }
+                    ]
+                });
+            }
+
+            // Action Handlers
+            navigator.mediaSession.setActionHandler('play', () => {
+                // Ensure we are playing
+                if (!isPlaying) togglePlay();
+            });
+            navigator.mediaSession.setActionHandler('pause', () => {
+                if (isPlaying) togglePlay();
+            });
+            navigator.mediaSession.setActionHandler('previoustrack', () => prevSong());
+            navigator.mediaSession.setActionHandler('nexttrack', () => nextSong());
+        }
+    }, [currentSong, isPlaying, togglePlay, nextSong, prevSong]);
+
+
     // Helpers
-    const getFilteredSongs = () => {
+    // Helpers
+    const getFilteredSongs = useCallback(() => {
         return currentView === 'all'
-            ? songs
-            : songs.filter(s => s.group === currentView);
-    };
+            ? allSongs
+            : allSongs.filter(s => s.group_id === currentView);
+    }, [currentView, allSongs]);
 
     const shuffleArray = (array) => {
         const newArr = [...array];
@@ -87,8 +278,8 @@ export const PlayerProvider = ({ children }) => {
         setUserQueue([...userQueue, song]);
     };
 
-    const playSong = (song) => {
-        if (currentSong?.id === song.id && soundRef.current) {
+    const playSong = useCallback((song) => {
+        if (currentSongRef.current?.id === song.id && soundRef.current) {
             togglePlay();
             return;
         }
@@ -101,11 +292,51 @@ export const PlayerProvider = ({ children }) => {
         setOriginalQueue(viewSongs);
 
         let newQueue;
-        if (isShuffled) {
-            const otherSongs = viewSongs.filter(s => s.id !== song.id);
-            newQueue = [song, ...shuffleArray(otherSongs)];
+        // Access state directly here as it's an event handler
+        // But need to ensure 'isShuffled' is stable or in dep array.
+        // We can use the ref 'isPlaying' etc if needed, but 'isShuffled' isn't ref'd yet.
+        // Let's add isShuffled to deps.
+        // Wait, playSong depends on isShuffled, currentView, songs.
+
+        // Simpler: Just reconstruct queue.
+        // Re-implement shuffle logic here to avoid complex deps?
+        // Or just let it depend on isShuffled.
+
+        // We need a stable reference to 'isShuffled' to avoid re-creating playSong too often?
+        // Actually, re-creating playSong on View change is fine.
+
+        // But to make it cleaner, let's read the current state.
+
+        // NOTE: We're inside a component, so we can use the state directly.
+        // We just list dependencies.
+
+        // Re-check shuffle state
+        // We'll use the 'isShuffled' from scope.
+        // But we need to make sure we don't have stale closure issues if called from async.
+        // It's called from click handlers, so it's fine.
+
+        // We need to duplicate the logic of getFilteredSongs inside or call it.
+        // calling getFilteredSongs() is fine.
+
+        const songsList = getFilteredSongs();
+
+        // Check shuffle logic again - creating a dependency on shuffle logic
+        const shouldShuffle = isShuffled; // capture current state
+
+        if (shouldShuffle) {
+            const otherSongs = songsList.filter(s => s.id !== song.id);
+            // We need shuffleArray function.
+            // Helper functions inside component are recreated every render.
+            // Let's move shuffleArray outside or use it as is.
+            // It's pure, so it's fine.
+            const newArr = [...otherSongs];
+            for (let i = newArr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+            }
+            newQueue = [song, ...newArr];
         } else {
-            newQueue = viewSongs;
+            newQueue = songsList;
         }
 
         setQueue(newQueue);
@@ -115,53 +346,7 @@ export const PlayerProvider = ({ children }) => {
         setQueueIndex(newIndex);
 
         _playInternal(song);
-    };
-
-    const _playInternal = (song) => {
-        if (soundRef.current) {
-            soundRef.current.unload();
-        }
-
-        setCurrentSong(song);
-        setIsPlaying(true);
-        setCurrentTime(0);
-
-        const sound = new Howl({
-            src: [song.url || ''],
-            html5: true,
-            volume: volume,
-            onend: () => {
-                nextSong(true);
-            },
-            onload: () => {
-                setDuration(sound.duration());
-            },
-            onloaderror: (id, err) => {
-                console.error("Load Error:", err);
-            },
-            onplayerror: (id, err) => {
-                console.error("Play Error:", err);
-                sound.once('unlock', function () {
-                    sound.play();
-                });
-            }
-        });
-
-        soundRef.current = sound;
-        sound.play();
-    };
-
-    const togglePlay = () => {
-        if (!soundRef.current) return;
-
-        if (isPlaying) {
-            soundRef.current.pause();
-            setIsPlaying(false);
-        } else {
-            soundRef.current.play();
-            setIsPlaying(true);
-        }
-    };
+    }, [getFilteredSongs, isShuffled, _playInternal, togglePlay, currentSongRef]);
 
     const toggleShuffle = () => {
         const newShuffleState = !isShuffled;
@@ -204,107 +389,47 @@ export const PlayerProvider = ({ children }) => {
         setCurrentView(viewId);
     };
 
-    // Need to use refs or functional updates for auto-advance if closure is stale?
-    // Actually Context re-renders on state change, providing fresh functions.
-    // BUT Howler 'onend' closure captures the state at creation time of the Howl object.
-    // We need a stable reference or to rely on finding the song in the *current* queue via state.
-    // PROBLEM: 'onend' callback defines 'nextSong' from the render scope where 'playSong' was called.
-    // If we rely on Howl's onEnd calling a function, that function better check the REF of the queue.
+    const addVault = async (name, coverImage) => {
+        // Simple color cycle or random
+        const colors = [
+            { color: 'from-purple-600 to-indigo-600', text: 'text-purple-400', border: 'border-purple-500/30', bg_hex: '#2e1065' },
+            { color: 'from-blue-500 to-cyan-500', text: 'text-blue-400', border: 'border-blue-500/30', bg_hex: '#1e3a8a' },
+            { color: 'from-red-600 to-orange-600', text: 'text-red-400', border: 'border-red-500/30', bg_hex: '#7f1d1d' },
+            { color: 'from-emerald-600 to-teal-600', text: 'text-emerald-400', border: 'border-emerald-500/30', bg_hex: '#047857' },
+        ];
+        const randomStyle = colors[Math.floor(Math.random() * colors.length)];
 
-    // workaround: use a ref to hold the latest queue for the onend callback
-    // const queueRef = useRef(queue);
-    // useEffect(() => { queueRef.current = queue; }, [queue]);
-    // const currentSongRef = useRef(currentSong);
-    // useEffect(() => { currentSongRef.current = currentSong; }, [currentSong]);
-
-
-    const nextSong = (auto = false) => {
-        const activeQueue = queueRef.current;
-        const activeUserQueue = userQueueRef.current;
-        const activeIndex = queueIndexRef.current;
-        const activeRepeat = repeatModeRef.current;
-
-        // 1. Check User Queue (Priority)
-        if (activeUserQueue.length > 0) {
-            const nextS = activeUserQueue[0];
-            // Remove from user queue
-            setUserQueue(prev => prev.slice(1));
-            // Just play it, don't update main queue index
-            _playInternal(nextS);
-            return;
-        }
-
-        // 2. Main Queue
-        if (activeQueue.length === 0) return;
-
-        // Repeat One (only if auto-advancing, manual next skips)
-        if (auto && activeRepeat === 2 && currentSongRef.current) {
-            _playInternal(currentSongRef.current);
-            return;
-        }
-
-        // Calculate next index
-        let nextIndex = activeIndex + 1;
-
-        // End of queue check
-        if (nextIndex >= activeQueue.length) {
-            if (activeRepeat === 1) {
-                nextIndex = 0; // Wrap
-            } else {
-                // Repeat Off: Stop
-                // But if manual next, we usually wrap or stop?
-                // Let's wrap if manual, stop if auto?
-                if (auto) {
-                    setIsPlaying(false);
-                    if (soundRef.current) {
-                        soundRef.current.stop();
-                        seek(0);
-                    }
-                    return;
-                } else {
-                    nextIndex = 0; // Manual next loop
-                }
-            }
-        }
-
-        setQueueIndex(nextIndex);
-        _playInternal(activeQueue[nextIndex]);
-    };
-
-    const prevSong = () => {
-        if (currentTime > 3 && soundRef.current) {
-            seek(0);
-            return;
-        }
-
-        // Previous logic is simple: go back in main queue.
-        // If we were playing a User Queue song, where do we go?
-        // Ideally, go back to the prev song in main queue?
-        // Or Restart song?
-
-        const activeQueue = queue;
-        const activeIndex = queueIndex;
-
-        if (activeQueue.length === 0) return;
-
-        const prevIndex = (activeIndex - 1 + activeQueue.length) % activeQueue.length;
-        setQueueIndex(prevIndex);
-        _playInternal(activeQueue[prevIndex]);
-    };
-
-    const addVault = (name, coverImage) => {
-        const newVault = {
-            id: `v-${Date.now()}`,
+        // Optimistic Update
+        const optimisticVault = {
+            id: `temp-${Date.now()}`,
             name: name,
-            color: 'from-gray-700 to-gray-900', // Default styling
-            text: 'text-gray-300',
-            border: 'border-gray-600/30',
-            bg_hex: '#333333',
-            coverUrl: coverImage
+            color: randomStyle.color,
+            created_at: new Date().toISOString()
         };
-        setGroups([...groups, newVault]);
-        // Optionally switch to new vault immediately
-        // setCurrentView(newVault.id);
+        setGroups(prev => [...prev, optimisticVault]);
+
+        const { data, error } = await supabase.from('vaults').insert([{
+            name: name,
+            color: randomStyle.color,
+        }]).select();
+
+        if (error) {
+            console.error('Error creating vault:', error);
+            // Rollback
+            setGroups(prev => prev.filter(g => g.id !== optimisticVault.id));
+        } else if (data) {
+            // Replace temp ID with real one (Realtime might handle this, but let's be safe)
+            // Actually, Realtime will send an INSERT event.
+            // If we keep the optimistic one, we might get duplicates until we refresh.
+            // Better strategy: Don't optimistic update if we rely on Realtime, OR ignore Realtime for self-generated actions.
+            // Simple approach: The Realtime subscription adds it. 
+            // If user says "automatic", maybe they mean "it didn't show up".
+            // Let's rely on the returned data to update the local state immediately if Realtime is slow.
+
+            // Remove optimistic, add real (deduplication logic needed in Realtime handler?)
+            const realVault = data[0];
+            setGroups(prev => prev.map(g => g.id === optimisticVault.id ? realVault : g));
+        }
     };
 
     const filteredSongs = getFilteredSongs(); // For display in main list

@@ -63,7 +63,7 @@ const Sidebar = ({ onCreateVault }) => {
                                     {g.coverUrl ? (
                                         <img src={g.coverUrl} alt={g.name} className="w-8 h-8 rounded object-cover shadow-sm" />
                                     ) : (
-                                        <div className={`w-8 h-8 rounded bg-[#282828] flex items-center justify-center text-xs font-bold uppercase group-hover:bg-white group-hover:text-black transition shadow-sm`}>
+                                        <div className={`w-8 h-8 rounded bg-gradient-to-br ${g.color || 'from-gray-700 to-gray-800'} flex items-center justify-center text-xs font-bold uppercase text-white shadow-sm`}>
                                             {g.name.substring(0, 2)}
                                         </div>
                                     )}

@@ -4,7 +4,7 @@ import { usePlayer } from '../context/PlayerContext';
 import SongMenu from './SongMenu';
 import clsx from 'clsx';
 
-const SongList = () => {
+const SongList = ({ onUpload }) => {
     const { songs, isPlaying, currentSong, playSong, currentView, groups, switchView } = usePlayer();
 
     return (
@@ -22,11 +22,11 @@ const SongList = () => {
                 <div className="flex flex-col items-center justify-center py-20 text-gray-500">
                     <Music className="w-12 h-12 mb-4 opacity-50" />
                     <p>No songs here yet.</p>
-                    <button className="mt-4 text-white font-bold hover:underline">Upload something?</button>
+                    <button onClick={onUpload} className="mt-4 text-white font-bold hover:underline">Upload something?</button>
                 </div>
             ) : (
                 songs.map((song, index) => {
-                    const group = groups.find(g => g.id === song.group);
+                    const group = groups.find(g => g.id === song.group_id);
                     const isCurrent = currentSong?.id === song.id;
 
                     return (
@@ -51,8 +51,8 @@ const SongList = () => {
                             {/* Title/Image */}
                             <div className="flex items-center gap-4 overflow-hidden">
                                 <div className="w-10 h-10 bg-[#333] flex-shrink-0 rounded flex items-center justify-center relative overflow-hidden">
-                                    {song.cover ? (
-                                        <img src={song.cover} className="w-full h-full object-cover" alt="Art" />
+                                    {song.cover_url ? (
+                                        <img src={song.cover_url} className="w-full h-full object-cover" alt="Art" />
                                     ) : (
                                         <Music className="w-5 h-5 text-gray-500" />
                                     )}

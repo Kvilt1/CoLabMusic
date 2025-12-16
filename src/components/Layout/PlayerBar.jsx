@@ -22,10 +22,11 @@ const PlayerBar = () => {
         toggleRepeat
     } = usePlayer();
 
-    if (!currentSong) return null;
-
     const [isDragging, setIsDragging] = React.useState(false);
     const [dragValue, setDragValue] = React.useState(0);
+
+    if (!currentSong) return null;
+
 
     const handleSeekChange = (e) => {
         setIsDragging(true);

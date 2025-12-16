@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { X, Upload, ChevronDown, Plus, Trash2, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { usePlayer } from '../context/PlayerContext';
 import { supabase } from '../supabaseClient';
@@ -131,7 +131,7 @@ const UploadModal = ({ isOpen, onClose }) => {
             // Using tus-js-client gives us fine-grained progress events which users expect.
 
             const fileName = `${Date.now()}-${audioFile.name}`;
-            const { data: { session } } = await supabase.auth.getSession();
+            await supabase.auth.getSession();
 
             // NOTE: For anon uploads to work, RLS must be disabled or Policies allowing anon insert must exist.
             // We are using standard supabase upload for simplicity first, as it handles auth better.
@@ -173,7 +173,7 @@ const UploadModal = ({ isOpen, onClose }) => {
                     let coverUrl = null;
                     if (coverFile) {
                         const coverName = `covers/${Date.now()}-${coverFile.name}`;
-                        const { data: coverData, error: coverError } = await supabase.storage
+                        const { error: coverError } = await supabase.storage
                             .from('Music')
                             .upload(coverName, coverFile);
 

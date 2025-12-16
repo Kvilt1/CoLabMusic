@@ -1,7 +1,6 @@
 import React from 'react';
 import { usePlayer } from '../../context/PlayerContext';
 import { Music2, X } from 'lucide-react';
-import clsx from 'clsx';
 
 const RightSidebar = () => {
     const {

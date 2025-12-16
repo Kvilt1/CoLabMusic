@@ -23,4 +23,14 @@ dist-ssr
 *.sln
 *.sw?
 
-codetree.txt
+# Environment variables
+.env
+.env.local
+.env.production.local
+.env.development.local
+
+# Temporary files
+.tmp
+.temp
+*.tmp
+*.temp

@@ -1,12 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Hero from '../Hero';
 import SongList from '../SongList';
-import UploadModal from '../UploadModal'; // Use context instead? NO, App handles modal state.
-// Actually, MainView doesn't need to know about UploadModal if it's in App.jsx.
-// But wait, the "Upload Music" button is inside the Header in MainView.
-// So MainView needs an onUpload prop.
 import clsx from 'clsx';
-import { usePlayer } from '../../context/PlayerContext';
 
 const MainView = ({ onUpload }) => {
     // We need to trigger the upload modal which is lifted to App.jsx
@@ -53,11 +48,14 @@ const MainView = ({ onUpload }) => {
     const userInitials = "R";
 
     return (
-        <main id="main-scroll" className="flex-1 overflow-y-auto relative bg-[#121212] m-2 rounded-lg ml-0 overflow-hidden custom-scrollbar">
+        <main id="main-scroll" className="flex-1 overflow-y-auto relative bg-[#121212] md:m-2 md:rounded-lg md:ml-0 overflow-hidden custom-scrollbar">
             {/* Header Gradient / Glass */}
-            <div className={clsx("sticky top-0 z-30 px-8 py-4 flex items-center justify-between transition-all duration-300", scrolled ? "bg-[#121212]/90 backdrop-blur-md shadow-lg" : "bg-transparent")}>
+            <div className={clsx(
+                "sticky top-0 z-30 px-4 md:px-8 py-3 md:py-4 flex items-center justify-between transition-all duration-300",
+                scrolled ? "bg-[#121212]/90 backdrop-blur-md shadow-lg" : "bg-transparent"
+            )}>
                 <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
+                    <div className="hidden md:flex items-center gap-2">
                         <button className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white cursor-not-allowed opacity-50">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
                         </button>
@@ -65,22 +63,25 @@ const MainView = ({ onUpload }) => {
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
                         </button>
                     </div>
+                    {/* Mobile Logo/Title */}
+                    <h1 className="md:hidden text-xl font-bold">CloudSync</h1>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 md:gap-4">
                     <button
                         onClick={onUpload}
-                        className="px-4 py-1.5 bg-white text-black text-sm font-bold rounded-full hover:scale-105 transition"
+                        className="px-3 md:px-4 py-1.5 bg-white text-black text-xs md:text-sm font-bold rounded-full hover:scale-105 transition active:scale-95"
                     >
-                        Upload Music
+                        Upload
                     </button>
-                    <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center font-bold text-xs ring-2 ring-black">{userInitials}</div>
+                    <div className="w-7 h-7 md:w-8 md:h-8 bg-purple-600 rounded-full flex items-center justify-center font-bold text-xs ring-2 ring-black">{userInitials}</div>
                 </div>
             </div>
 
             <Hero />
             <SongList onUpload={onUpload} />
 
-            <div className="h-20"></div> {/* Spacer for player */}
+            {/* Mobile: Extra spacer for navigation + player */}
+            <div className="h-32 md:h-20"></div>
         </main>
     );
 };

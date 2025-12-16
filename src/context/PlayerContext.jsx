@@ -1,9 +1,9 @@
-
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useState, useEffect, useRef, useContext, useCallback } from 'react';
 import { Howl, Howler } from 'howler';
 import { supabase } from '../supabaseClient';
 
-const PlayerContext = createContext();
+export const PlayerContext = createContext();
 
 export const usePlayer = () => useContext(PlayerContext);
 
@@ -106,8 +106,8 @@ export const PlayerProvider = ({ children }) => {
                 setIsPlaying(false);
                 if (nextSongRef.current) nextSongRef.current();
             },
-            onloaderror: (id, err) => console.error('Load Error:', err),
-            onplayerror: (id, err) => {
+            onloaderror: () => console.error('Load Error'),
+            onplayerror: () => {
                 sound.once('unlock', () => {
                     sound.play();
                 });
@@ -228,33 +228,115 @@ export const PlayerProvider = ({ children }) => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [togglePlay]); // Re-attach when togglePlay changes
 
-    // Media Session API (Hardware Keys)
+    // Enhanced Media Session API for iOS & Hardware Keys
     useEffect(() => {
         if ('mediaSession' in navigator) {
-            // Update Metadata
+            // Update Metadata with multiple artwork sizes for better iOS support
             if (currentSong && 'MediaMetadata' in window) {
+                const artworkUrl = currentSong.cover || '/vite.svg';
                 navigator.mediaSession.metadata = new MediaMetadata({
                     title: currentSong.title,
                     artist: currentSong.artist || 'Unknown Artist',
                     album: currentSong.album || 'Unknown Album',
                     artwork: [
-                        { src: currentSong.cover || '', sizes: '512x512', type: 'image/png' }
+                        { src: artworkUrl, sizes: '96x96', type: 'image/png' },
+                        { src: artworkUrl, sizes: '128x128', type: 'image/png' },
+                        { src: artworkUrl, sizes: '192x192', type: 'image/png' },
+                        { src: artworkUrl, sizes: '256x256', type: 'image/png' },
+                        { src: artworkUrl, sizes: '384x384', type: 'image/png' },
+                        { src: artworkUrl, sizes: '512x512', type: 'image/png' }
                     ]
                 });
             }
 
-            // Action Handlers
+            // Action Handlers with iOS optimizations
             navigator.mediaSession.setActionHandler('play', () => {
-                // Ensure we are playing
                 if (!isPlaying) togglePlay();
             });
+            
             navigator.mediaSession.setActionHandler('pause', () => {
                 if (isPlaying) togglePlay();
             });
-            navigator.mediaSession.setActionHandler('previoustrack', () => prevSong());
-            navigator.mediaSession.setActionHandler('nexttrack', () => nextSong());
+            
+            navigator.mediaSession.setActionHandler('previoustrack', () => {
+                prevSong();
+            });
+            
+            navigator.mediaSession.setActionHandler('nexttrack', () => {
+                nextSong();
+            });
+
+            // Seek functionality for iOS
+            try {
+                navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+                    const skipTime = details.seekOffset || 10;
+                    const sound = soundRef.current;
+                    if (sound) {
+                        const newTime = Math.max(0, sound.seek() - skipTime);
+                        sound.seek(newTime);
+                        setCurrentTime(newTime);
+                    }
+                });
+
+                navigator.mediaSession.setActionHandler('seekforward', (details) => {
+                    const skipTime = details.seekOffset || 10;
+                    const sound = soundRef.current;
+                    if (sound) {
+                        const newTime = Math.min(duration, sound.seek() + skipTime);
+                        sound.seek(newTime);
+                        setCurrentTime(newTime);
+                    }
+                });
+
+                navigator.mediaSession.setActionHandler('seekto', (details) => {
+                    if (details.seekTime !== null && soundRef.current) {
+                        soundRef.current.seek(details.seekTime);
+                        setCurrentTime(details.seekTime);
+                    }
+                });
+                } catch {
+                    // Some browsers don't support seek actions
+                    console.log('Seek actions not supported');
+                }
+
+            // Update playback state
+            if (isPlaying) {
+                navigator.mediaSession.playbackState = 'playing';
+            } else {
+                navigator.mediaSession.playbackState = 'paused';
+            }
+
+            // Update position state for iOS lock screen scrubbing
+            if (soundRef.current && duration > 0) {
+                try {
+                    navigator.mediaSession.setPositionState({
+                        duration: duration,
+                        playbackRate: 1.0,
+                        position: currentTime
+                    });
+                } catch {
+                    // Position state not supported
+                }
+            }
         }
-    }, [currentSong, isPlaying, togglePlay, nextSong, prevSong]);
+
+        // iOS Audio Session optimizations
+        if (soundRef.current && soundRef.current._sounds && soundRef.current._sounds[0]) {
+            const audioElement = soundRef.current._sounds[0]._node;
+            if (audioElement) {
+                // Enable background playback on iOS
+                audioElement.setAttribute('playsinline', 'true');
+                audioElement.setAttribute('webkit-playsinline', 'true');
+                
+                // Prevent sleep during playback
+                if ('wakeLock' in navigator && isPlaying) {
+                    navigator.wakeLock.request('screen').catch(() => {
+                        // Wake lock not supported or denied
+                    });
+                }
+            }
+        }
+    }, [currentSong, isPlaying, currentTime, duration, togglePlay, nextSong, prevSong]);
 
 
     // Helpers
@@ -389,7 +471,7 @@ export const PlayerProvider = ({ children }) => {
         setCurrentView(viewId);
     };
 
-    const addVault = async (name, coverImage) => {
+    const addVault = async (name) => {
         // Simple color cycle or random
         const colors = [
             { color: 'from-purple-600 to-indigo-600', text: 'text-purple-400', border: 'border-purple-500/30', bg_hex: '#2e1065' },

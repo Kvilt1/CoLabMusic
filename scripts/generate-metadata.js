@@ -44,7 +44,7 @@ async function generateMetadata() {
             const duration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
             // Date: "Added recently" placeholder or extract creation time if available (using file stats)
-            const stats = fs.statSync(filePath);
+            // const stats = fs.statSync(filePath);
             const date = "Added recently"; // keeping simple for now, or use stats.mtime.toLocaleDateString();
 
             // Cover Art

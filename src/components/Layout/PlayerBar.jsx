@@ -1,5 +1,5 @@
 import React from 'react';
-import { Music2, Heart, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, ListMusic, Volume2 } from 'lucide-react';
+import { Music2, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, ListMusic, Volume2 } from 'lucide-react';
 import { usePlayer } from '../../context/PlayerContext';
 
 const PlayerBar = () => {
@@ -63,7 +63,6 @@ const PlayerBar = () => {
                     <div className="text-sm font-semibold text-white hover:underline cursor-pointer truncate">{currentSong.title}</div>
                     <div className="text-xs text-gray-400 hover:text-white hover:underline cursor-pointer truncate transition">{currentSong.artist}</div>
                 </div>
-                <button className="text-gray-400 hover:text-emerald-500 transition ml-2"><Heart className="w-4 h-4" /></button>
             </div>
 
             {/* Controls */}

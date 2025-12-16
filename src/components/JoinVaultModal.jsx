@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Users, Loader2, Check, AlertCircle } from 'lucide-react';
 import { usePlayer } from '../context/PlayerContext';
+import { useToast } from '../context/ToastContext';
 
 const JoinVaultModal = ({ isOpen, onClose }) => {
     const { joinVaultByCode, switchView } = usePlayer();
+    const toast = useToast();
     const [code, setCode] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -79,8 +81,10 @@ const JoinVaultModal = ({ isOpen, onClose }) => {
 
         if (joinError) {
             setError(joinError.message);
+            toast.error(joinError.message || 'Failed to join vault.');
         } else if (vault) {
             setSuccess(vault);
+            toast.success(`Joined ${vault.name}`);
             setTimeout(() => {
                 onClose();
                 switchView(vault.id);

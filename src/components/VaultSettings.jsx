@@ -5,6 +5,7 @@ import {
     AlertCircle, RefreshCw, Crown, Shield, User, UserMinus, ChevronDown, 
     ArrowRightLeft, LogOut, MoreVertical, Info
 } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
 
 // Role configuration
 const ROLES = {
@@ -30,6 +31,7 @@ const VaultSettings = () => {
         leaveVault,
         currentUser
     } = usePlayer();
+    const toast = useToast();
     
     const vaultId = viewData?.vaultId;
     const vault = groups.find(g => g.id === vaultId);
@@ -119,6 +121,7 @@ const VaultSettings = () => {
             const { url, error: uploadError } = await uploadVaultCover(vaultId, coverFile);
             if (uploadError) {
                 setError('Failed to upload cover image');
+                toast.error('Failed to upload cover image.');
                 setSaving(false);
                 return;
             }
@@ -136,8 +139,10 @@ const VaultSettings = () => {
 
         if (updateError) {
             setError('Failed to save changes');
+            toast.error('Failed to save changes.');
         } else {
             setSaveSuccess(true);
+            toast.success('Vault updated.');
             setTimeout(() => setSaveSuccess(false), 2000);
         }
     };
@@ -150,8 +155,10 @@ const VaultSettings = () => {
         
         if (error) {
             setError('Failed to delete vault');
+            toast.error('Failed to delete vault.');
             setDeleting(false);
         } else {
+            toast.success('Vault deleted.');
             switchView('all');
         }
     };
@@ -161,6 +168,9 @@ const VaultSettings = () => {
         const { error } = await regenerateInviteCode(vaultId);
         if (error) {
             setError('Failed to regenerate invite code');
+            toast.error('Failed to regenerate invite code.');
+        } else {
+            toast.success('Invite code regenerated.');
         }
         setRegenerating(false);
     };

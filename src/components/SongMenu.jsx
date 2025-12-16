@@ -2,12 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MoreHorizontal, ListPlus, Download, Trash2 } from 'lucide-react';
 import { usePlayer } from '../context/PlayerContext';
 import ConfirmDialog from './ConfirmDialog';
+import { useToast } from '../context/ToastContext';
 
 const SongMenu = ({ song }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const menuRef = useRef(null);
     const { addToQueue, deleteSong, currentUser, groups } = usePlayer();
+    const toast = useToast();
 
     // Check if user can delete this song (owner or admin of the vault)
     const canDelete = () => {
@@ -64,7 +66,9 @@ const SongMenu = ({ song }) => {
         const { error } = await deleteSong(song.id);
         if (error) {
             console.error('Failed to delete song:', error);
-            // TODO: Show error toast
+            toast.error(error.message || 'Failed to delete song.');
+        } else {
+            toast.success('Song deleted.');
         }
     };
 

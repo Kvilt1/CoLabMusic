@@ -3,9 +3,11 @@ import { X, Upload, ChevronDown, Plus, Trash2, Image as ImageIcon, Loader2 } fro
 import { usePlayer } from '../context/PlayerContext';
 import { supabase } from '../supabaseClient';
 import * as tus from 'tus-js-client';
+import { useToast } from '../context/ToastContext';
 
 const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
     const { groups, currentView } = usePlayer();
+    const toast = useToast();
     const [artists, setArtists] = useState(['']);
     const [coverFile, setCoverFile] = useState(null);
     const [coverPreview, setCoverPreview] = useState(null);
@@ -181,6 +183,7 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
                     console.error('Upload failed:', error);
                     setErrorMessage('Upload failed: ' + error.message);
                     setUploadStatus('error');
+                    toast.error(`Upload failed: ${error.message}`);
                 },
                 onProgress: (bytesUploaded, bytesTotal) => {
                     const percentage = (bytesUploaded / bytesTotal * 100).toFixed(2);
@@ -229,8 +232,10 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
                         console.error('Database Error:', dbError);
                         setErrorMessage('File uploaded but database save failed.');
                         setUploadStatus('error');
+                        toast.error('File uploaded but database save failed.');
                     } else {
                         setUploadStatus('success');
+                        toast.success('Upload complete!');
                         // Notify parent about the new song for immediate UI update
                         if (onSongUploaded && songData?.[0]) {
                             onSongUploaded(songData[0]);
@@ -265,6 +270,7 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
             console.error(err);
             setErrorMessage('An unexpected error occurred.');
             setUploadStatus('error');
+            toast.error('An unexpected error occurred.');
         }
     };
 

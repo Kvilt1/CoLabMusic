@@ -1,8 +1,43 @@
 import React from 'react';
-import { Play, BarChart2, Heart, Clock, Music, Search } from 'lucide-react';
+import { Play, BarChart2, Music, Search } from 'lucide-react';
 import { usePlayer } from '../context/PlayerContext';
 import SongMenu from './SongMenu';
 import clsx from 'clsx';
+
+// Format date as relative time (e.g., "2 days ago")
+const formatRelativeTime = (dateString) => {
+    if (!dateString) return 'Unknown';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) {
+        const weeks = Math.floor(diffDays / 7);
+        return `${weeks} ${weeks === 1 ? 'week' : 'weeks'} ago`;
+    }
+    if (diffDays < 365) {
+        const months = Math.floor(diffDays / 30);
+        return `${months} ${months === 1 ? 'month' : 'months'} ago`;
+    }
+    const years = Math.floor(diffDays / 365);
+    return `${years} ${years === 1 ? 'year' : 'years'} ago`;
+};
+
+// Format date for hover tooltip
+const formatFullDate = (dateString) => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
 
 const SongList = ({ onUpload }) => {
     const { songs, isPlaying, currentSong, playSong, currentView, groups, switchView, listSearchQuery, setListSearchQuery } = usePlayer();
@@ -97,7 +132,12 @@ const SongList = ({ onUpload }) => {
                             <div className="truncate group-hover:text-white transition hover:underline decoration-white/50">{song.album}</div>
 
                             {/* Date */}
-                            <div className="truncate group-hover:text-white transition">2 weeks ago</div>
+                            <div 
+                                className="truncate group-hover:text-white transition cursor-default"
+                                title={formatFullDate(song.created_at)}
+                            >
+                                {formatRelativeTime(song.created_at)}
+                            </div>
 
                             {/* Vault */}
                             <div className="flex items-center gap-2 truncate">

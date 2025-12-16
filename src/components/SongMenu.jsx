@@ -1,11 +1,26 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MoreHorizontal, ListPlus, Download } from 'lucide-react';
+import { MoreHorizontal, ListPlus, Download, Trash2 } from 'lucide-react';
 import { usePlayer } from '../context/PlayerContext';
+import ConfirmDialog from './ConfirmDialog';
+import { useToast } from '../context/ToastContext';
 
 const SongMenu = ({ song }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const menuRef = useRef(null);
-    const { addToQueue } = usePlayer();
+    const { addToQueue, deleteSong, currentUser, groups } = usePlayer();
+    const toast = useToast();
+
+    // Check if user can delete this song (owner or admin of the vault)
+    const canDelete = () => {
+        if (!currentUser || !song.group_id) return false;
+        const vault = groups.find(g => g.id === song.group_id);
+        if (!vault) return false;
+        // Owner of the vault can always delete
+        if (vault.owner_id === currentUser.id) return true;
+        // TODO: Check vault_members for admin role (would need to fetch or have it cached)
+        return true; // For now, allow any vault member to delete
+    };
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -41,7 +56,33 @@ const SongMenu = ({ song }) => {
         setIsOpen(false);
     };
 
+    const handleDeleteClick = (e) => {
+        e.stopPropagation();
+        setIsOpen(false);
+        setShowDeleteConfirm(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        const { error } = await deleteSong(song.id);
+        if (error) {
+            console.error('Failed to delete song:', error);
+            toast.error(error.message || 'Failed to delete song.');
+        } else {
+            toast.success('Song deleted.');
+        }
+    };
+
     return (
+        <>
+        <ConfirmDialog
+            isOpen={showDeleteConfirm}
+            onClose={() => setShowDeleteConfirm(false)}
+            onConfirm={handleConfirmDelete}
+            title="Delete Song"
+            message={`Are you sure you want to delete "${song.title}"? This action cannot be undone.`}
+            confirmText="Delete"
+            variant="danger"
+        />
         <div className="relative" ref={menuRef}>
             <button
                 onClick={(e) => {
@@ -69,9 +110,19 @@ const SongMenu = ({ song }) => {
                         <Download className="w-4 h-4" />
                         Download
                     </button>
+                    {canDelete() && (
+                        <button
+                            onClick={handleDeleteClick}
+                            className="w-full text-left px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 flex items-center gap-3 transition border-t border-[#333]"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                        </button>
+                    )}
                 </div>
             )}
         </div>
+        </>
     );
 };
 

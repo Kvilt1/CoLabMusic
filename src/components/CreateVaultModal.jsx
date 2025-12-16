@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { X, Image as ImageIcon } from 'lucide-react';
 import { usePlayer } from '../context/PlayerContext';
+import { useToast } from '../context/ToastContext';
 
 const CreateVaultModal = ({ isOpen, onClose }) => {
     const { addVault } = usePlayer();
+    const toast = useToast();
     const [name, setName] = useState('');
     const [coverPreview, setCoverPreview] = useState(null);
 
@@ -20,18 +22,23 @@ const CreateVaultModal = ({ isOpen, onClose }) => {
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         if (!name.trim()) return;
 
-        addVault(name, coverPreview);
+        const { error } = await addVault(name, coverPreview);
+        if (error) {
+            toast.error(error.message || 'Failed to create vault.');
+            return;
+        }
+        toast.success('Vault created.');
         setName('');
         setCoverPreview(null);
         onClose();
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center backdrop-blur-sm">
+        <div className="fixed inset-0 bg-black/60 z-70 flex items-center justify-center backdrop-blur-sm">
             <div className="bg-[#282828] rounded-xl p-8 w-full max-w-sm shadow-2xl border border-[#333] animate-in fade-in zoom-in duration-200">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-bold">Create New Vault</h2>

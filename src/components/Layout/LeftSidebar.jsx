@@ -1,10 +1,23 @@
-import React from 'react';
-import { Waves, Home, Search, Plus, Download } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Waves, Home, Search, Plus, FolderPlus, UserPlus } from 'lucide-react';
 import { usePlayer } from '../../context/PlayerContext';
 import clsx from 'clsx';
 
-const Sidebar = ({ onCreateVault }) => {
+const Sidebar = ({ onCreateVault, onJoinVault }) => {
     const { groups, currentView, switchView } = usePlayer();
+    const [showMenu, setShowMenu] = useState(false);
+    const menuRef = useRef(null);
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (menuRef.current && !menuRef.current.contains(e.target)) {
+                setShowMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     return (
         <aside className="w-64 bg-black flex-shrink-0 flex flex-col h-full border-r border-[#282828]">
@@ -53,14 +66,43 @@ const Sidebar = ({ onCreateVault }) => {
                 </ul>
 
                 <div>
-                    <div className="flex items-center justify-between px-4 mb-2 group">
+                    <div className="flex items-center justify-between px-4 mb-2 group relative" ref={menuRef}>
                         <h2 className="text-xs uppercase font-bold text-gray-400 tracking-wider">Your Vaults</h2>
                         <button
-                            onClick={onCreateVault}
-                            className="text-gray-400 hover:text-white transition p-1 hover:bg-[#282828] rounded-full"
+                            onClick={() => setShowMenu(!showMenu)}
+                            className={clsx(
+                                "text-gray-400 hover:text-white transition p-1 rounded-full",
+                                showMenu ? "bg-[#333] text-white" : "hover:bg-[#282828]"
+                            )}
                         >
                             <Plus className="w-4 h-4" />
                         </button>
+
+                        {/* Dropdown Menu */}
+                        {showMenu && (
+                            <div className="absolute right-0 top-full mt-1 w-48 bg-[#282828] rounded-lg shadow-xl border border-[#333] py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                                <button
+                                    onClick={() => {
+                                        setShowMenu(false);
+                                        onCreateVault();
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#333] hover:text-white transition"
+                                >
+                                    <FolderPlus className="w-4 h-4" />
+                                    Create New Vault
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowMenu(false);
+                                        onJoinVault();
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#333] hover:text-white transition"
+                                >
+                                    <UserPlus className="w-4 h-4" />
+                                    Join with Code
+                                </button>
+                            </div>
+                        )}
                     </div>
                     <div className="h-[1px] bg-[#282828] mx-4 mb-3"></div>
                     <ul className="space-y-1">
@@ -73,8 +115,8 @@ const Sidebar = ({ onCreateVault }) => {
                                         currentView === g.id && "bg-[#1a1a1a] text-white"
                                     )}
                                 >
-                                    {g.coverUrl ? (
-                                        <img src={g.coverUrl} alt={g.name} className="w-8 h-8 rounded object-cover shadow-sm" />
+                                    {g.cover_url ? (
+                                        <img src={g.cover_url} alt={g.name} className="w-8 h-8 rounded object-cover shadow-sm" />
                                     ) : (
                                         <div className={`w-8 h-8 rounded bg-gradient-to-br ${g.color || 'from-gray-700 to-gray-800'} flex items-center justify-center text-xs font-bold uppercase text-white shadow-sm`}>
                                             {g.name.substring(0, 2)}
@@ -87,12 +129,6 @@ const Sidebar = ({ onCreateVault }) => {
                     </ul>
                 </div>
             </nav>
-
-            <div className="p-4 border-t border-[#282828]">
-                <button className="flex items-center gap-3 text-sm text-gray-400 hover:text-white transition w-full px-2 py-2">
-                    <Download className="w-4 h-4" /> Install Desktop App
-                </button>
-            </div>
         </aside>
     );
 };

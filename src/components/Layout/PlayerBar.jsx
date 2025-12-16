@@ -1,5 +1,5 @@
 import React from 'react';
-import { Music2, ChevronUp, Heart, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Mic2, ListMusic, MonitorSpeaker, Volume2 } from 'lucide-react';
+import { Music2, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, ListMusic, Volume2 } from 'lucide-react';
 import { usePlayer } from '../../context/PlayerContext';
 
 const PlayerBar = () => {
@@ -52,21 +52,17 @@ const PlayerBar = () => {
         <footer className="fixed bottom-0 left-0 right-0 h-[90px] bg-[#181818] border-t border-[#282828] px-4 flex items-center justify-between z-50 transition-transform duration-300">
             {/* Now Playing */}
             <div className="flex items-center gap-4 w-[30%]">
-                <div className="w-14 h-14 bg-gray-800 rounded shadow-lg flex items-center justify-center flex-shrink-0 border border-white/10 relative group cursor-pointer overflow-hidden">
-                    {currentSong.cover ? (
-                        <img src={currentSong.cover} alt="Art" className="w-full h-full object-cover" />
+                <div className="w-14 h-14 bg-gray-800 rounded shadow-lg flex items-center justify-center flex-shrink-0 border border-white/10 overflow-hidden">
+                    {(currentSong.cover_url || currentSong.cover) ? (
+                        <img src={currentSong.cover_url || currentSong.cover} alt="Art" className="w-full h-full object-cover" />
                     ) : (
                         <Music2 className="text-gray-500" />
                     )}
-                    <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center rounded">
-                        <ChevronUp className="w-6 h-6 text-white" />
-                    </div>
                 </div>
                 <div className="overflow-hidden">
                     <div className="text-sm font-semibold text-white hover:underline cursor-pointer truncate">{currentSong.title}</div>
                     <div className="text-xs text-gray-400 hover:text-white hover:underline cursor-pointer truncate transition">{currentSong.artist}</div>
                 </div>
-                <button className="text-gray-400 hover:text-emerald-500 transition ml-2"><Heart className="w-4 h-4" /></button>
             </div>
 
             {/* Controls */}
@@ -118,14 +114,12 @@ const PlayerBar = () => {
 
             {/* Volume & Tools */}
             <div className="flex items-center justify-end gap-3 w-[30%]">
-                <button className="text-gray-400 hover:text-white p-2 rounded-md hover:bg-[#282828] transition"><Mic2 className="w-4 h-4" /></button>
                 <button
                     onClick={toggleQueue}
                     className={`p-2 rounded-md hover:bg-[#282828] transition ${isQueueOpen ? 'text-emerald-500' : 'text-gray-400 hover:text-white'}`}
                 >
                     <ListMusic className="w-4 h-4" />
                 </button>
-                <button className="text-gray-400 hover:text-white p-2 rounded-md hover:bg-[#282828] transition"><MonitorSpeaker className="w-4 h-4" /></button>
                 <div className="flex items-center gap-2 w-32 range-group ml-2">
                     <Volume2 className="w-4 h-4 text-gray-400" />
                     <input

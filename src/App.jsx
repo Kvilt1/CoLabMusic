@@ -9,8 +9,19 @@ import Login from './components/Login';
 import { supabase } from './supabaseClient';
 
 import CreateVaultModal from './components/CreateVaultModal';
+import JoinVaultModal from './components/JoinVaultModal';
 
-const AppContent = ({ onUpload, onCreateVault, isUploadModalOpen, setIsUploadModalOpen, isCreateVaultModalOpen, setIsCreateVaultModalOpen }) => {
+const AppContent = ({ 
+  onUpload, 
+  onCreateVault, 
+  onJoinVault,
+  isUploadModalOpen, 
+  setIsUploadModalOpen, 
+  isCreateVaultModalOpen, 
+  setIsCreateVaultModalOpen,
+  isJoinVaultModalOpen,
+  setIsJoinVaultModalOpen
+}) => {
   const { switchView } = usePlayer();
 
   // Keyboard shortcut for search (Cmd/Ctrl + K)
@@ -31,6 +42,7 @@ const AppContent = ({ onUpload, onCreateVault, isUploadModalOpen, setIsUploadMod
       <LeftSidebar
         onUpload={onUpload}
         onCreateVault={onCreateVault}
+        onJoinVault={onJoinVault}
       />
       <MainView onUpload={onUpload} />
       <RightSidebar />
@@ -44,6 +56,10 @@ const AppContent = ({ onUpload, onCreateVault, isUploadModalOpen, setIsUploadMod
         isOpen={isCreateVaultModalOpen}
         onClose={() => setIsCreateVaultModalOpen(false)}
       />
+      <JoinVaultModal
+        isOpen={isJoinVaultModalOpen}
+        onClose={() => setIsJoinVaultModalOpen(false)}
+      />
     </div>
   );
 };
@@ -51,6 +67,7 @@ const AppContent = ({ onUpload, onCreateVault, isUploadModalOpen, setIsUploadMod
 const App = () => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isCreateVaultModalOpen, setIsCreateVaultModalOpen] = useState(false);
+  const [isJoinVaultModalOpen, setIsJoinVaultModalOpen] = useState(false);
   const [session, setSession] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -82,10 +99,13 @@ const App = () => {
       <AppContent 
         onUpload={() => setIsUploadModalOpen(true)}
         onCreateVault={() => setIsCreateVaultModalOpen(true)}
+        onJoinVault={() => setIsJoinVaultModalOpen(true)}
         isUploadModalOpen={isUploadModalOpen}
         setIsUploadModalOpen={setIsUploadModalOpen}
         isCreateVaultModalOpen={isCreateVaultModalOpen}
         setIsCreateVaultModalOpen={setIsCreateVaultModalOpen}
+        isJoinVaultModalOpen={isJoinVaultModalOpen}
+        setIsJoinVaultModalOpen={setIsJoinVaultModalOpen}
       />
     </PlayerProvider>
   );

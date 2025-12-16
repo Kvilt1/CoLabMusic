@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Music, Play, Shuffle, Search, X } from 'lucide-react';
+import { Music, Play, Shuffle, Search, X, Settings } from 'lucide-react';
 import { usePlayer } from '../context/PlayerContext';
 
 const Hero = () => {
-    const { currentView, currentGroup, songs, playSong, toggleShuffle, isShuffled, setListSearchQuery, listSearchQuery } = usePlayer();
+    const { currentView, currentGroup, songs, playSong, toggleShuffle, isShuffled, setListSearchQuery, listSearchQuery, switchView } = usePlayer();
     const [isSearchOpen, setIsSearchOpen] = useState(false);
 
     const heroStyle = useMemo(() => {
@@ -32,8 +32,8 @@ const Hero = () => {
                 <div className="flex items-end gap-6 mb-8 transition-all duration-300">
                     {currentView !== 'all' && (
                         <div className="shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] transition-transform hover:scale-105 duration-500">
-                            {currentGroup.coverUrl ? (
-                                <img src={currentGroup.coverUrl} alt={currentGroup.name} className="w-56 h-56 rounded-md shadow-lg object-cover" />
+                            {currentGroup.cover_url ? (
+                                <img src={currentGroup.cover_url} alt={currentGroup.name} className="w-56 h-56 rounded-md shadow-lg object-cover" />
                             ) : (
                                 <div className={`w-56 h-56 bg-gradient-to-br ${currentGroup.color} flex items-center justify-center rounded-md shadow-lg`}>
                                     <Music className="w-24 h-24 text-white/40 drop-shadow-md" />
@@ -74,6 +74,15 @@ const Hero = () => {
                             >
                                 <Shuffle className="w-8 h-8" />
                             </button>
+                            {currentView !== 'all' && (
+                                <button
+                                    onClick={() => switchView('vault-settings', { vaultId: currentGroup.id })}
+                                    className="text-gray-400 hover:text-white transition hover:rotate-90 duration-300"
+                                    title="Vault Settings"
+                                >
+                                    <Settings className="w-8 h-8" />
+                                </button>
+                            )}
                             <div className="flex-1"></div>
                             <div className="relative group">
                                 <button 

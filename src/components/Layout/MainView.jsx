@@ -2,10 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Hero from '../Hero';
 import SongList from '../SongList';
 import SearchView from '../SearchView';
-import UploadModal from '../UploadModal'; // Use context instead? NO, App handles modal state.
-// Actually, MainView doesn't need to know about UploadModal if it's in App.jsx.
-// But wait, the "Upload Music" button is inside the Header in MainView.
-// So MainView needs an onUpload prop.
+import VaultSettings from '../VaultSettings';
 import clsx from 'clsx';
 import { usePlayer } from '../../context/PlayerContext';
 
@@ -81,6 +78,22 @@ const MainView = ({ onUpload }) => {
                     </div>
                 </div>
                 <SearchView />
+            </main>
+        );
+    }
+
+    if (currentView === 'vault-settings') {
+        return (
+            <main id="main-scroll" className="flex-1 overflow-y-auto relative bg-[#121212] m-2 rounded-lg ml-0 overflow-hidden custom-scrollbar">
+                <div className="sticky top-0 z-30 px-8 py-4 flex items-center justify-between bg-[#121212] backdrop-blur-md shadow-lg">
+                    <div className="flex items-center gap-4">
+                        {/* Placeholder for navigation history if needed */}
+                    </div>
+                    <div className="flex items-center gap-4">
+                         <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center font-bold text-xs ring-2 ring-black">{userInitials}</div>
+                    </div>
+                </div>
+                <VaultSettings />
             </main>
         );
     }

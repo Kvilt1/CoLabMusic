@@ -33,9 +33,22 @@ const Sidebar = ({ onCreateVault }) => {
                         </button>
                     </li>
                     <li>
-                        <a href="#" className="flex items-center gap-4 px-4 py-3 text-gray-400 hover:text-white transition rounded-md font-medium hover:bg-[#1a1a1a]">
-                            <Search className="w-5 h-5" /> Search
-                        </a>
+                        <button
+                            onClick={() => switchView('search')}
+                            className={clsx(
+                                "w-full flex items-center justify-between px-4 py-3 rounded-md transition font-medium group",
+                                currentView === 'search'
+                                    ? "text-white bg-[#282828]"
+                                    : "text-gray-400 hover:text-white hover:bg-[#1a1a1a]"
+                            )}
+                        >
+                            <span className="flex items-center gap-4">
+                                <Search className="w-5 h-5" /> Search
+                            </span>
+                            <kbd className="hidden group-hover:inline-flex items-center gap-1 px-2 py-0.5 bg-black/40 rounded text-xs font-mono border border-white/10">
+                                <span className="text-[10px]">⌘</span>K
+                            </kbd>
+                        </button>
                     </li>
                 </ul>
 

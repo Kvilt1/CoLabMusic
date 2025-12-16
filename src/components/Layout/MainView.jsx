@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Hero from '../Hero';
 import SongList from '../SongList';
+import SearchView from '../SearchView';
 import UploadModal from '../UploadModal'; // Use context instead? NO, App handles modal state.
 // Actually, MainView doesn't need to know about UploadModal if it's in App.jsx.
 // But wait, the "Upload Music" button is inside the Header in MainView.
@@ -51,6 +52,38 @@ const MainView = ({ onUpload }) => {
 
     // Placeholder for Auth User
     const userInitials = "R";
+    const { currentView } = usePlayer();
+
+    // Show search view when in search mode
+    if (currentView === 'search') {
+        return (
+            <main id="main-scroll" className="flex-1 overflow-y-auto relative bg-[#121212] m-2 rounded-lg ml-0 overflow-hidden custom-scrollbar">
+                {/* Header for Search View */}
+                <div className="sticky top-0 z-30 px-8 py-4 flex items-center justify-between bg-[#121212]">
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <button className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white cursor-not-allowed opacity-50">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+                            </button>
+                            <button className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white cursor-not-allowed opacity-50">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={onUpload}
+                            className="px-4 py-1.5 bg-white text-black text-sm font-bold rounded-full hover:scale-105 transition"
+                        >
+                            Upload Music
+                        </button>
+                        <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center font-bold text-xs ring-2 ring-black">{userInitials}</div>
+                    </div>
+                </div>
+                <SearchView />
+            </main>
+        );
+    }
 
     return (
         <main id="main-scroll" className="flex-1 overflow-y-auto relative bg-[#121212] m-2 rounded-lg ml-0 overflow-hidden custom-scrollbar">

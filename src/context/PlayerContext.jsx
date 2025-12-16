@@ -18,6 +18,9 @@ export const PlayerProvider = ({ children }) => {
     // Vaults State
     const [groups, setGroups] = useState([]);
     const [allSongs, setAllSongs] = useState([]);
+    
+    // List Search State
+    const [listSearchQuery, setListSearchQuery] = useState('');
 
     // Queue System
     const [queue, setQueue] = useState([]);
@@ -260,10 +263,22 @@ export const PlayerProvider = ({ children }) => {
     // Helpers
     // Helpers
     const getFilteredSongs = useCallback(() => {
-        return currentView === 'all'
+        let filtered = currentView === 'all'
             ? allSongs
             : allSongs.filter(s => s.group_id === currentView);
-    }, [currentView, allSongs]);
+        
+        // Apply list search filter if query exists
+        if (listSearchQuery.trim()) {
+            const query = listSearchQuery.toLowerCase();
+            filtered = filtered.filter(song => 
+                song.title?.toLowerCase().includes(query) ||
+                song.artist?.toLowerCase().includes(query) ||
+                song.album?.toLowerCase().includes(query)
+            );
+        }
+        
+        return filtered;
+    }, [currentView, allSongs, listSearchQuery]);
 
     const shuffleArray = (array) => {
         const newArr = [...array];
@@ -387,6 +402,8 @@ export const PlayerProvider = ({ children }) => {
 
     const switchView = (viewId) => {
         setCurrentView(viewId);
+        // Clear list search when switching views
+        setListSearchQuery('');
     };
 
     const addVault = async (name, coverImage) => {
@@ -467,7 +484,11 @@ export const PlayerProvider = ({ children }) => {
         repeatMode,
         toggleRepeat,
 
-        addVault
+        addVault,
+        
+        // List Search
+        listSearchQuery,
+        setListSearchQuery
     };
 
     return (

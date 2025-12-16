@@ -1,11 +1,11 @@
 import React from 'react';
-import { Play, BarChart2, Heart, Clock, Music } from 'lucide-react';
+import { Play, BarChart2, Heart, Clock, Music, Search } from 'lucide-react';
 import { usePlayer } from '../context/PlayerContext';
 import SongMenu from './SongMenu';
 import clsx from 'clsx';
 
 const SongList = ({ onUpload }) => {
-    const { songs, isPlaying, currentSong, playSong, currentView, groups, switchView } = usePlayer();
+    const { songs, isPlaying, currentSong, playSong, currentView, groups, switchView, listSearchQuery, setListSearchQuery } = usePlayer();
 
     return (
         <div className="flex flex-col pb-32">
@@ -19,10 +19,36 @@ const SongList = ({ onUpload }) => {
             </div>
 
             {songs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-gray-500">
-                    <Music className="w-12 h-12 mb-4 opacity-50" />
-                    <p>No songs here yet.</p>
-                    <button onClick={onUpload} className="mt-4 text-white font-bold hover:underline">Upload something?</button>
+                <div className="flex flex-col items-center justify-center py-32 text-gray-500 animate-fade-in">
+                    {listSearchQuery ? (
+                        <>
+                            <div className="w-16 h-16 bg-[#1e1e1e] rounded-full flex items-center justify-center mb-6 shadow-lg">
+                                <Search className="w-8 h-8 opacity-50 text-gray-400" />
+                            </div>
+                            <h3 className="text-xl font-bold mb-2 text-white">No matches found</h3>
+                            <p className="text-sm text-gray-400 mb-6">We couldn't find any songs matching "{listSearchQuery}"</p>
+                            <button 
+                                onClick={() => setListSearchQuery('')} 
+                                className="px-6 py-2 bg-white text-black font-bold rounded-full hover:scale-105 transition shadow-lg text-sm"
+                            >
+                                Clear filter
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <div className="w-16 h-16 bg-[#1e1e1e] rounded-full flex items-center justify-center mb-6">
+                                <Music className="w-8 h-8 opacity-50 text-gray-400" />
+                            </div>
+                            <h3 className="text-xl font-bold mb-2 text-white">It's a bit quiet here</h3>
+                            <p className="text-sm text-gray-400 mb-6">This vault doesn't have any songs yet.</p>
+                            <button 
+                                onClick={onUpload} 
+                                className="px-6 py-2 bg-emerald-500 text-black font-bold rounded-full hover:bg-emerald-400 hover:scale-105 transition shadow-lg text-sm"
+                            >
+                                Upload Music
+                            </button>
+                        </>
+                    )}
                 </div>
             ) : (
                 songs.map((song, index) => {

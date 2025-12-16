@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
-import { Music, Play, Shuffle, Search } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Music, Play, Shuffle, Search, X } from 'lucide-react';
 import { usePlayer } from '../context/PlayerContext';
 
 const Hero = () => {
-    const { currentView, currentGroup, songs, playSong, toggleShuffle, isShuffled } = usePlayer();
+    const { currentView, currentGroup, songs, playSong, toggleShuffle, isShuffled, setListSearchQuery, listSearchQuery } = usePlayer();
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
 
     const heroStyle = useMemo(() => {
         if (currentView === 'all') {
@@ -59,23 +60,64 @@ const Hero = () => {
 
                 {/* Action Bar */}
                 <div className="flex items-center gap-8 mb-8">
-                    <button
-                        onClick={handlePlayVault}
-                        className="w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center hover:scale-105 hover:bg-emerald-400 transition shadow-xl text-black translate-y-0 active:translate-y-1"
-                    >
-                        <Play className="w-7 h-7 fill-current ml-1" />
-                    </button>
-                    <button
-                        onClick={toggleShuffle}
-                        className={`transition ${isShuffled ? 'text-emerald-500' : 'text-gray-400 hover:text-white'}`}
-                    >
-                        <Shuffle className="w-8 h-8" />
-                    </button>
-                    <div className="flex-1"></div>
-                    <div className="relative group">
-                        <span className="text-xs text-gray-400 mr-2 uppercase font-bold group-hover:text-white transition">Search in list</span>
-                        <button className="text-gray-400 hover:text-white transition"><Search className="w-5 h-5" /></button>
-                    </div>
+                    {!isSearchOpen ? (
+                        <>
+                            <button
+                                onClick={handlePlayVault}
+                                className="w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center hover:scale-105 hover:bg-emerald-400 transition shadow-xl text-black translate-y-0 active:translate-y-1"
+                            >
+                                <Play className="w-7 h-7 fill-current ml-1" />
+                            </button>
+                            <button
+                                onClick={toggleShuffle}
+                                className={`transition ${isShuffled ? 'text-emerald-500' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                <Shuffle className="w-8 h-8" />
+                            </button>
+                            <div className="flex-1"></div>
+                            <div className="relative group">
+                                <button 
+                                    onClick={() => setIsSearchOpen(true)}
+                                    className="flex items-center gap-2 text-gray-400 hover:text-white transition"
+                                >
+                                    <span className="text-xs uppercase font-bold group-hover:text-white transition">Search in list</span>
+                                    <Search className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex-1 flex items-center justify-end gap-3 animate-fade-in">
+                            <div className="relative w-full max-w-sm">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <input
+                                    type="text"
+                                    value={listSearchQuery}
+                                    onChange={(e) => setListSearchQuery(e.target.value)}
+                                    placeholder="Filter current view..."
+                                    autoFocus
+                                    className="w-full bg-[#2a2a2a] text-white placeholder-gray-400 rounded-md py-2.5 pl-9 pr-9 text-sm focus:outline-none focus:bg-[#333] focus:ring-1 focus:ring-emerald-500/50 transition-all shadow-inner"
+                                />
+                                {listSearchQuery && (
+                                    <button
+                                        onClick={() => setListSearchQuery('')}
+                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setIsSearchOpen(false);
+                                    setListSearchQuery('');
+                                }}
+                                className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition"
+                                title="Close search"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

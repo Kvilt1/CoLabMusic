@@ -75,14 +75,25 @@ export const PlayerProvider = ({ children }) => {
                     .order('created_at', { ascending: true });
                 
                 if (vaultsData) setGroups(vaultsData);
-            } else {
-                // Not logged in, fetch all public vaults
-                const { data: vaultsData } = await supabase.from('vaults').select('*').order('created_at', { ascending: true });
-                if (vaultsData) setGroups(vaultsData);
-            }
 
-            const { data: songsData } = await supabase.from('songs').select('*').order('created_at', { ascending: false });
-            if (songsData) setAllSongs(songsData);
+                // Only fetch songs from vaults the user has access to
+                const accessibleVaultIds = vaultsData?.map(v => v.id) || [];
+                if (accessibleVaultIds.length > 0) {
+                    const { data: songsData } = await supabase
+                        .from('songs')
+                        .select('*')
+                        .in('group_id', accessibleVaultIds)
+                        .order('created_at', { ascending: false });
+                    if (songsData) setAllSongs(songsData);
+                } else {
+                    // User has no vaults, show no songs
+                    setAllSongs([]);
+                }
+            } else {
+                // Not logged in, show nothing
+                setGroups([]);
+                setAllSongs([]);
+            }
         };
 
         fetchData();
@@ -118,8 +129,21 @@ export const PlayerProvider = ({ children }) => {
                 { event: '*', schema: 'public', table: 'songs' },
                 (payload) => {
                     if (payload.eventType === 'INSERT') {
-                        setAllSongs(prev => [payload.new, ...prev]);
-                    } // Handle other events if needed
+                        // Only add song if it belongs to a vault the user has access to
+                        setGroups(currentGroups => {
+                            const accessibleVaultIds = currentGroups.map(g => g.id);
+                            if (accessibleVaultIds.includes(payload.new.group_id)) {
+                                setAllSongs(prev => [payload.new, ...prev]);
+                            }
+                            return currentGroups; // Don't modify groups
+                        });
+                    } else if (payload.eventType === 'DELETE') {
+                        setAllSongs(prev => prev.filter(s => s.id !== payload.old.id));
+                    } else if (payload.eventType === 'UPDATE') {
+                        setAllSongs(prev => prev.map(s => 
+                            s.id === payload.new.id ? { ...s, ...payload.new } : s
+                        ));
+                    }
                 }
             )
             .subscribe();
@@ -823,6 +847,12 @@ export const PlayerProvider = ({ children }) => {
         return { error: null, transferred: isOwner };
     };
 
+    // Logout function
+    const logout = async () => {
+        await supabase.auth.signOut();
+        // State will be cleared by the onAuthStateChange listener
+    };
+
     // Upload vault cover image
     const uploadVaultCover = async (vaultId, file) => {
         const fileExt = file.name.split('.').pop();
@@ -871,6 +901,7 @@ export const PlayerProvider = ({ children }) => {
 
         // Auth
         currentUser,
+        logout,
 
         // New Exports
         queue,

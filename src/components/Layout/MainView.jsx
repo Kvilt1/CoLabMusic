@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Hero from '../Hero';
 import SongList from '../SongList';
 import SearchView from '../SearchView';
 import VaultSettings from '../VaultSettings';
+import UserMenu from '../UserMenu';
 import clsx from 'clsx';
 import { usePlayer } from '../../context/PlayerContext';
 
@@ -47,8 +48,6 @@ const MainView = ({ onUpload }) => {
         }
     }, []);
 
-    // Placeholder for Auth User
-    const userInitials = "R";
     const { currentView } = usePlayer();
 
     // Show search view when in search mode
@@ -74,7 +73,7 @@ const MainView = ({ onUpload }) => {
                         >
                             Upload Music
                         </button>
-                        <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center font-bold text-xs ring-2 ring-black">{userInitials}</div>
+                        <UserMenu />
                     </div>
                 </div>
                 <SearchView />
@@ -90,7 +89,7 @@ const MainView = ({ onUpload }) => {
                         {/* Placeholder for navigation history if needed */}
                     </div>
                     <div className="flex items-center gap-4">
-                         <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center font-bold text-xs ring-2 ring-black">{userInitials}</div>
+                        <UserMenu />
                     </div>
                 </div>
                 <VaultSettings />
@@ -119,7 +118,7 @@ const MainView = ({ onUpload }) => {
                     >
                         Upload Music
                     </button>
-                    <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center font-bold text-xs ring-2 ring-black">{userInitials}</div>
+                    <UserMenu />
                 </div>
             </div>
 

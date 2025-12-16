@@ -93,34 +93,34 @@ const JoinVaultModal = ({ isOpen, onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center backdrop-blur-sm">
-            <div className="bg-[#1a1a1a] rounded-2xl p-8 w-full max-w-md shadow-2xl border border-[#333] animate-in fade-in zoom-in duration-200">
-                <div className="flex justify-between items-center mb-6">
+        <div className="fixed inset-0 bg-dark-900/80 z-[70] flex items-center justify-center backdrop-blur-md animate-in fade-in duration-200">
+            <div className="bg-dark-800 rounded-2xl p-8 w-full max-w-md shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/5 animate-in zoom-in-95 duration-200">
+                <div className="flex justify-between items-center mb-8">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
-                            <Users className="w-5 h-5 text-black" />
+                        <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                            <Users className="w-5 h-5 text-orange-500" />
                         </div>
-                        <h2 className="text-xl font-bold">Join a Vault</h2>
+                        <h2 className="text-xl font-bold text-white">Join a Vault</h2>
                     </div>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white bg-[#333] p-2 rounded-full transition">
+                    <button onClick={onClose} className="text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition">
                         <X className="w-4 h-4" />
                     </button>
                 </div>
 
                 {success ? (
                     <div className="text-center py-8">
-                        <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4">
-                            <Check className="w-8 h-8 text-emerald-400" />
+                        <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6 ring-1 ring-emerald-500/50">
+                            <Check className="w-10 h-10 text-emerald-500" />
                         </div>
-                        <h3 className="text-xl font-bold text-white mb-2">You're in!</h3>
+                        <h3 className="text-2xl font-bold text-white mb-2">You're in!</h3>
                         <p className="text-gray-400">Welcome to <span className="text-white font-medium">{success.name}</span></p>
                     </div>
                 ) : (
                     <>
-                        <p className="text-gray-400 text-sm mb-6">Enter the 6-character invite code shared with you to join a vault.</p>
+                        <p className="text-gray-400 text-sm mb-6 leading-relaxed">Enter the 6-character invite code shared with you to join a private vault.</p>
 
                         {/* Code Input Grid */}
-                        <div className="flex justify-center gap-2 mb-6">
+                        <div className="flex justify-center gap-3 mb-8">
                             {code.map((digit, index) => (
                                 <input
                                     key={index}
@@ -130,14 +130,14 @@ const JoinVaultModal = ({ isOpen, onClose }) => {
                                     value={digit}
                                     onChange={(e) => handleChange(index, e.target.value)}
                                     onKeyDown={(e) => handleKeyDown(index, e)}
-                                    className="w-12 h-14 text-center text-2xl font-mono font-bold bg-[#222] border-2 border-[#333] rounded-lg text-white focus:outline-none focus:border-emerald-500 transition uppercase"
+                                    className="w-12 h-16 text-center text-3xl font-mono font-bold bg-dark-900 border-2 border-white/10 rounded-xl text-white focus:outline-none focus:border-orange-500 focus:bg-dark-800 transition-all uppercase shadow-inner"
                                     placeholder="•"
                                 />
                             ))}
                         </div>
 
                         {error && (
-                            <div className="flex items-center gap-2 text-red-400 text-sm mb-4 justify-center">
+                            <div className="flex items-center gap-2 text-red-400 text-sm mb-6 justify-center bg-red-500/10 py-2 px-4 rounded-lg border border-red-500/20">
                                 <AlertCircle className="w-4 h-4" />
                                 {error}
                             </div>
@@ -146,14 +146,14 @@ const JoinVaultModal = ({ isOpen, onClose }) => {
                         <button
                             onClick={handleSubmit}
                             disabled={loading || code.join('').length !== 6}
-                            className="w-full bg-emerald-500 text-black font-bold py-3 rounded-full hover:scale-[1.02] hover:bg-emerald-400 transition shadow-lg text-sm uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                            className="w-full bg-orange-500 text-white font-bold py-4 rounded-xl hover:bg-orange-600 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg text-sm uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
                         >
-                            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {loading && <Loader2 className="w-5 h-5 animate-spin" />}
                             {loading ? 'Joining...' : 'Join Vault'}
                         </button>
 
-                        <p className="text-center text-gray-500 text-xs mt-4">
-                            Don't have a code? Ask the vault owner to share their invite code with you.
+                        <p className="text-center text-gray-500 text-xs mt-6">
+                            Don't have a code? Ask the vault owner to share their invite code.
                         </p>
                     </>
                 )}
@@ -163,4 +163,3 @@ const JoinVaultModal = ({ isOpen, onClose }) => {
 };
 
 export default JoinVaultModal;
-

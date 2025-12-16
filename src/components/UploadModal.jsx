@@ -1,18 +1,28 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, ChevronDown, Plus, Trash2, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { usePlayer } from '../context/PlayerContext';
 import { supabase } from '../supabaseClient';
 import * as tus from 'tus-js-client';
 
-const UploadModal = ({ isOpen, onClose }) => {
+const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
     const { groups, currentView } = usePlayer();
     const [artists, setArtists] = useState(['']);
     const [coverFile, setCoverFile] = useState(null);
     const [coverPreview, setCoverPreview] = useState(null);
 
-    // Default to current view if it's a specific vault, otherwise first available
-    const initialVault = groups.find(g => g.id === currentView)?.id || groups[0]?.id || '';
-    const [selectedVault, setSelectedVault] = useState(initialVault);
+    const [selectedVault, setSelectedVault] = useState('');
+    
+    // Check if user has any vaults to upload to
+    const hasVaults = groups.length > 0;
+    
+    // Sync selectedVault when groups load or change
+    useEffect(() => {
+        if (groups.length > 0 && !selectedVault) {
+            // Default to current view if it's a specific vault, otherwise first available
+            const defaultVault = groups.find(g => g.id === currentView)?.id || groups[0]?.id || '';
+            setSelectedVault(defaultVault);
+        }
+    }, [groups, currentView, selectedVault]);
 
     // Audio State
     const [audioFile, setAudioFile] = useState(null);
@@ -117,6 +127,16 @@ const UploadModal = ({ isOpen, onClose }) => {
     };
 
     const uploadFile = async () => {
+        if (!hasVaults) {
+            setErrorMessage("You need to create or join a vault before uploading music.");
+            return;
+        }
+        
+        if (!selectedVault) {
+            setErrorMessage("Please select a vault to upload to.");
+            return;
+        }
+
         if (!audioFile || !trackTitle) {
             setErrorMessage("Please select a file and provide a title.");
             return;
@@ -191,7 +211,7 @@ const UploadModal = ({ isOpen, onClose }) => {
                         .getPublicUrl(fileName);
 
                     // 4. Save Metadata to Database
-                    const { error: dbError } = await supabase
+                    const { data: songData, error: dbError } = await supabase
                         .from('songs')
                         .insert([
                             {
@@ -202,7 +222,8 @@ const UploadModal = ({ isOpen, onClose }) => {
                                 group_id: selectedVault,
                                 duration: duration, // Add calculated duration
                             }
-                        ]);
+                        ])
+                        .select();
 
                     if (dbError) {
                         console.error('Database Error:', dbError);
@@ -210,6 +231,10 @@ const UploadModal = ({ isOpen, onClose }) => {
                         setUploadStatus('error');
                     } else {
                         setUploadStatus('success');
+                        // Notify parent about the new song for immediate UI update
+                        if (onSongUploaded && songData?.[0]) {
+                            onSongUploaded(songData[0]);
+                        }
                         setTimeout(() => {
                             onClose();
                             // Reset state
@@ -252,6 +277,17 @@ const UploadModal = ({ isOpen, onClose }) => {
                 </div>
 
                 <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); uploadFile(); }}>
+
+                    {/* No Vaults Warning */}
+                    {!hasVaults && (
+                        <div className="p-4 bg-amber-500/20 text-amber-400 text-sm rounded-lg border border-amber-500/50 flex items-start gap-3">
+                            <div className="text-amber-500 mt-0.5">⚠️</div>
+                            <div>
+                                <p className="font-semibold mb-1">No vaults available</p>
+                                <p className="text-amber-400/80">You need to create or join a vault before uploading music. Close this modal and create a new vault first.</p>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Audio File Upload Area */}
                     <div
@@ -396,9 +432,9 @@ const UploadModal = ({ isOpen, onClose }) => {
                     <div className="pt-2">
                         <button
                             type="submit"
-                            disabled={uploadStatus === 'uploading' || uploadStatus === 'success'}
+                            disabled={uploadStatus === 'uploading' || uploadStatus === 'success' || !hasVaults}
                             className={`w-full font-bold py-3.5 rounded-full shadow-lg text-sm uppercase tracking-wide flex items-center justify-center gap-2
-                                ${uploadStatus === 'uploading'
+                                ${(uploadStatus === 'uploading' || !hasVaults)
                                     ? 'bg-gray-600 text-gray-300 cursor-not-allowed'
                                     : 'bg-emerald-500 text-black hover:scale-[1.02] hover:bg-emerald-400 transition'
                                 }

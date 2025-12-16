@@ -59,8 +59,8 @@ const RightSidebar = () => {
                         <h3 className="text-sm font-bold text-gray-400 mb-3">Now playing</h3>
                         <div className="flex items-center gap-3 p-2 rounded-md bg-[#282828]/50 hover:bg-[#282828] transition group cursor-pointer border-l-4 border-emerald-500">
                             <div className="w-10 h-10 bg-gray-800 rounded flex items-center justify-center flex-shrink-0 relative overflow-hidden">
-                                {currentSong.cover ? (
-                                    <img src={currentSong.cover} alt="Art" className="w-full h-full object-cover rounded" />
+                                {(currentSong.cover_url || currentSong.cover) ? (
+                                    <img src={currentSong.cover_url || currentSong.cover} alt="Art" className="w-full h-full object-cover rounded" />
                                 ) : (
                                     <Music2 className="text-gray-500 w-5 h-5" />
                                 )}
@@ -92,8 +92,8 @@ const RightSidebar = () => {
                                     onClick={() => playSong(song)} // Should this play from here? Ideally specific function. For now plays song.
                                 >
                                     <div className="w-10 h-10 bg-[#282828] rounded flex items-center justify-center flex-shrink-0 relative overflow-hidden">
-                                        {song.cover ? (
-                                            <img src={song.cover} alt="Art" className="w-full h-full object-cover" />
+                                        {(song.cover_url || song.cover) ? (
+                                            <img src={song.cover_url || song.cover} alt="Art" className="w-full h-full object-cover" />
                                         ) : (
                                             <Music2 className="text-gray-600 w-5 h-5" />
                                         )}
@@ -126,8 +126,8 @@ const RightSidebar = () => {
                                     className="flex items-center gap-3 p-2 rounded-md hover:bg-[#2a2a2a] transition group cursor-pointer opacity-80 hover:opacity-100"
                                 >
                                     <div className="w-10 h-10 bg-[#282828] rounded flex items-center justify-center flex-shrink-0 relative overflow-hidden">
-                                        {song.cover ? (
-                                            <img src={song.cover} alt="Art" className="w-full h-full object-cover" />
+                                        {(song.cover_url || song.cover) ? (
+                                            <img src={song.cover_url || song.cover} alt="Art" className="w-full h-full object-cover" />
                                         ) : (
                                             <Music2 className="text-gray-600 w-5 h-5" />
                                         )}

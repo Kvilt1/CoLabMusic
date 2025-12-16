@@ -304,7 +304,7 @@ export const PlayerProvider = ({ children }) => {
                     artist: currentSong.artist || 'Unknown Artist',
                     album: currentSong.album || 'Unknown Album',
                     artwork: [
-                        { src: currentSong.cover || '', sizes: '512x512', type: 'image/png' }
+                        { src: currentSong.cover_url || currentSong.cover || '', sizes: '512x512', type: 'image/png' }
                     ]
                 });
             }
@@ -847,6 +847,76 @@ export const PlayerProvider = ({ children }) => {
         return { error: null, transferred: isOwner };
     };
 
+    // Add Song to local state (for immediate UI update after upload)
+    const addSongToState = (song) => {
+        setAllSongs(prev => {
+            // Check if song already exists (e.g., from realtime)
+            if (prev.some(s => s.id === song.id)) return prev;
+            return [song, ...prev];
+        });
+    };
+
+    // Delete Song
+    const deleteSong = async (songId) => {
+        // Find the song to get its URL for storage deletion
+        const song = allSongs.find(s => s.id === songId);
+        if (!song) {
+            return { error: { message: 'Song not found' } };
+        }
+
+        // If this song is currently playing, stop playback
+        if (currentSong?.id === songId) {
+            if (soundRef.current) {
+                soundRef.current.stop();
+                soundRef.current.unload();
+                soundRef.current = null;
+            }
+            setCurrentSong(null);
+            setIsPlaying(false);
+            setCurrentTime(0);
+            setDuration(0);
+        }
+
+        // Remove from queue if present
+        setQueue(prev => prev.filter(s => s.id !== songId));
+        setUserQueue(prev => prev.filter(s => s.id !== songId));
+        setOriginalQueue(prev => prev.filter(s => s.id !== songId));
+
+        // Optimistic update - remove from local state
+        const previousSongs = allSongs;
+        setAllSongs(prev => prev.filter(s => s.id !== songId));
+
+        // Delete from database
+        const { error: dbError } = await supabase
+            .from('songs')
+            .delete()
+            .eq('id', songId);
+
+        if (dbError) {
+            console.error('Error deleting song from database:', dbError);
+            // Rollback optimistic update
+            setAllSongs(previousSongs);
+            return { error: dbError };
+        }
+
+        // Try to delete from storage (extract path from URL)
+        // URL format: https://[project].supabase.co/storage/v1/object/public/music/[path]
+        if (song.url) {
+            try {
+                const urlParts = song.url.split('/storage/v1/object/public/music/');
+                if (urlParts.length > 1) {
+                    const filePath = decodeURIComponent(urlParts[1]);
+                    await supabase.storage.from('music').remove([filePath]);
+                }
+            } catch (storageError) {
+                console.warn('Could not delete file from storage:', storageError);
+                // Don't fail the operation if storage deletion fails
+            }
+        }
+
+        return { error: null };
+    };
+
     // Logout function
     const logout = async () => {
         await supabase.auth.signOut();
@@ -918,6 +988,8 @@ export const PlayerProvider = ({ children }) => {
         addVault,
         updateVault,
         deleteVault,
+        deleteSong,
+        addSongToState,
         
         // Vault Members & Invite Codes
         getVaultMembers,

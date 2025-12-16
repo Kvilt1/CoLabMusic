@@ -22,7 +22,7 @@ const AppContent = ({
   isJoinVaultModalOpen,
   setIsJoinVaultModalOpen
 }) => {
-  const { switchView } = usePlayer();
+  const { switchView, addSongToState } = usePlayer();
 
   // Keyboard shortcut for search (Cmd/Ctrl + K)
   useEffect(() => {
@@ -51,6 +51,7 @@ const AppContent = ({
       <UploadModal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
+        onSongUploaded={addSongToState}
       />
       <CreateVaultModal
         isOpen={isCreateVaultModalOpen}

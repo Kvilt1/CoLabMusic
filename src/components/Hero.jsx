@@ -5,6 +5,8 @@ import { usePlayer } from '../context/PlayerContext';
 const Hero = () => {
     const { currentView, currentGroup, songs, playSong, toggleShuffle, isShuffled, setListSearchQuery, listSearchQuery, switchView } = usePlayer();
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const isVaultView = currentView !== 'all';
+    const vaultName = currentGroup?.name || 'Vault';
 
     const heroStyle = useMemo(() => {
         if (currentView === 'all') {
@@ -30,12 +32,12 @@ const Hero = () => {
 
             <div className="pt-24 px-8 pb-8">
                 <div className="flex items-end gap-6 mb-8 transition-all duration-300">
-                    {currentView !== 'all' && (
+                    {isVaultView && (
                         <div className="shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] transition-transform hover:scale-105 duration-500">
-                            {currentGroup.cover_url ? (
-                                <img src={currentGroup.cover_url} alt={currentGroup.name} className="w-56 h-56 rounded-md shadow-lg object-cover" />
+                            {currentGroup?.cover_url ? (
+                                <img src={currentGroup.cover_url} alt={vaultName} className="w-56 h-56 rounded-md shadow-lg object-cover" />
                             ) : (
-                                <div className={`w-56 h-56 bg-gradient-to-br ${currentGroup.color} flex items-center justify-center rounded-md shadow-lg`}>
+                                <div className={`w-56 h-56 bg-gradient-to-br ${currentGroup?.color || 'from-gray-700 to-gray-900'} flex items-center justify-center rounded-md shadow-lg`}>
                                     <Music className="w-24 h-24 text-white/40 drop-shadow-md" />
                                 </div>
                             )}
@@ -47,7 +49,7 @@ const Hero = () => {
                             {currentView === 'all' ? 'Public Stream' : 'Private Vault'}
                         </span>
                         <h1 className="text-7xl font-black mt-2 mb-4 tracking-tighter text-white drop-shadow-lg">
-                            {currentView === 'all' ? 'Home Stream' : currentGroup.name}
+                            {currentView === 'all' ? 'Home Stream' : vaultName}
                         </h1>
                         <p className="text-gray-300 font-medium text-sm flex items-center gap-2">
                             {currentView === 'all'
@@ -74,7 +76,7 @@ const Hero = () => {
                             >
                                 <Shuffle className="w-8 h-8" />
                             </button>
-                            {currentView !== 'all' && (
+                            {isVaultView && currentGroup?.id && (
                                 <button
                                     onClick={() => switchView('vault-settings', { vaultId: currentGroup.id })}
                                     className="text-gray-400 hover:text-white transition hover:rotate-90 duration-300"

@@ -44,12 +44,16 @@ export const PlayerProvider = ({ children }) => {
     const queueIndexRef = useRef(queueIndex);
     const currentSongRef = useRef(currentSong);
     const repeatModeRef = useRef(repeatMode);
+    const groupsRef = useRef(groups);
+    const currentUserRef = useRef(currentUser);
 
     useEffect(() => { queueRef.current = queue; }, [queue]);
     useEffect(() => { userQueueRef.current = userQueue; }, [userQueue]);
     useEffect(() => { queueIndexRef.current = queueIndex; }, [queueIndex]);
     useEffect(() => { currentSongRef.current = currentSong; }, [currentSong]);
     useEffect(() => { repeatModeRef.current = repeatMode; }, [repeatMode]);
+    useEffect(() => { groupsRef.current = groups; }, [groups]);
+    useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
     // Data Fetching & Realtime
     useEffect(() => {
@@ -118,8 +122,18 @@ export const PlayerProvider = ({ children }) => {
                 { event: '*', schema: 'public', table: 'songs' },
                 (payload) => {
                     if (payload.eventType === 'INSERT') {
-                        setAllSongs(prev => [payload.new, ...prev]);
-                    } // Handle other events if needed
+                        const song = payload.new;
+                        const isAuthed = Boolean(currentUserRef.current);
+                        const canSeeSong = !isAuthed || groupsRef.current.some(g => g.id === song.group_id);
+
+                        if (canSeeSong) {
+                            setAllSongs(prev => (prev.some(s => s.id === song.id) ? prev : [song, ...prev]));
+                        }
+                    } else if (payload.eventType === 'UPDATE') {
+                        setAllSongs(prev => prev.map(s => (s.id === payload.new.id ? { ...s, ...payload.new } : s)));
+                    } else if (payload.eventType === 'DELETE') {
+                        setAllSongs(prev => prev.filter(s => s.id !== payload.old.id));
+                    }
                 }
             )
             .subscribe();
@@ -849,6 +863,27 @@ export const PlayerProvider = ({ children }) => {
     const currentGroup = currentView === 'all'
         ? null
         : groups.find(g => g.id === currentView);
+
+    // If the current vault disappears (deleted / removed), fall back to Home to avoid crashes.
+    useEffect(() => {
+        if (currentView === 'all') return;
+
+        if (currentView === 'vault-settings') {
+            const vaultId = viewData?.vaultId;
+            if (vaultId && !groups.some(g => g.id === vaultId)) {
+                setCurrentView('all');
+                setViewData(null);
+                setListSearchQuery('');
+            }
+            return;
+        }
+
+        if (!groups.some(g => g.id === currentView)) {
+            setCurrentView('all');
+            setViewData(null);
+            setListSearchQuery('');
+        }
+    }, [currentView, viewData, groups]);
 
     const value = {
         isPlaying,

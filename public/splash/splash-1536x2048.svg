@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1536" height="2048" viewBox="0 0 1536 2048" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#121212;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0a0a0a;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="iconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#14b8a6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1536" height="2048" fill="url(#bgGradient)"/>
+  
+  <!-- App Icon -->
+  <g transform="translate(688, 904)">
+    <rect width="160" height="160" fill="url(#iconGradient)" rx="32"/>
+    <path d="M 140 60 Q 105 20, 70 60 T 0 100" 
+          fill="none" 
+          stroke="#121212" 
+          stroke-width="12" 
+          stroke-linecap="round"
+          transform="translate(10, 20)"/>
+    <path d="M 140 80 Q 105 120, 70 80 T 0 40" 
+          fill="none" 
+          stroke="#121212" 
+          stroke-width="12" 
+          stroke-linecap="round"
+          opacity="0.6"
+          transform="translate(10, 20)"/>
+  </g>
+  
+  <!-- App Name -->
+  <text x="768" y="1104" 
+        font-family="system-ui, -apple-system" 
+        font-size="36" 
+        font-weight="bold"
+        fill="#10b981" 
+        text-anchor="middle">CloudSync</text>
+</svg>

@@ -24,21 +24,60 @@
 
 body {
   @apply bg-black text-white font-sans overflow-hidden h-screen flex flex-col select-none;
+  /* iOS safe area support */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
-/* Range Input Styling */
-/* Range Input Styling */
+/* iOS Standalone Mode Styles */
+@media (display-mode: standalone) {
+  body {
+    /* Remove any potential scroll bounce */
+    overscroll-behavior-y: none;
+  }
+  
+  /* Adjust for iOS notch */
+  .pt-safe {
+    padding-top: max(env(safe-area-inset-top), 1rem);
+  }
+  
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+  }
+}
+
+/* Mobile Optimizations */
+@media (max-width: 767px) {
+  /* Hide scrollbar on mobile */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Smooth scrolling on mobile */
+  html {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Prevent text selection on tap (except in inputs) */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+  
+  input, textarea {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
+/* Range Input Styling - Desktop */
 input[type=range] {
   -webkit-appearance: none;
   background: #4d4d4d;
-  /* Background for track */
   background-image: linear-gradient(#ffffff, #ffffff);
-  /* Fill color */
   background-repeat: no-repeat;
   border-radius: 2px;
 }
 
-/* Hover state for fill color (optional, making it green on hover like Spotify) */
 .range-group:hover input[type=range] {
   background-image: linear-gradient(#1db954, #1db954);
 }
@@ -64,4 +103,80 @@ input[type=range]::-webkit-slider-runnable-track {
   box-shadow: none;
   border: none;
   background: transparent;
+}
+
+/* Range Input Styling - Mobile (White theme for player sheet) */
+input[type=range].slider-thumb-white::-webkit-slider-thumb {
+  background: #ffffff;
+  opacity: 1;
+  height: 14px;
+  width: 14px;
+}
+
+input[type=range].slider-thumb-white {
+  background: rgba(255, 255, 255, 0.2);
+  background-image: linear-gradient(#ffffff, #ffffff);
+}
+
+/* Mobile touch improvements */
+@media (hover: none) and (pointer: coarse) {
+  /* Always show slider thumb on mobile */
+  input[type=range]::-webkit-slider-thumb {
+    opacity: 1;
+  }
+  
+  /* Larger touch targets */
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Safe area utilities */
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.pl-safe {
+  padding-left: env(safe-area-inset-left);
+}
+
+.pr-safe {
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Prevent overscroll bounce on iOS */
+html, body {
+  overscroll-behavior: none;
+}
+
+/* Custom animations for mobile */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
 }

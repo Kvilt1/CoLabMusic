@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import LeftSidebar from './components/Layout/LeftSidebar';
 import RightSidebar from './components/Layout/RightSidebar';
 import PlayerBar from './components/Layout/PlayerBar';
+import MobilePlayerBar from './components/Layout/MobilePlayerBar';
+import MobileNavigation from './components/Layout/MobileNavigation';
 import MainView from './components/Layout/MainView';
+import InstallPrompt from './components/InstallPrompt';
 import { PlayerProvider } from './context/PlayerContext';
 import UploadModal from './components/UploadModal';
 import Login from './components/Login';
@@ -31,6 +34,18 @@ const App = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Prevent pull-to-refresh on mobile when in standalone mode
+  useEffect(() => {
+    const preventPullToRefresh = (e) => {
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('touchmove', preventPullToRefresh, { passive: false });
+    return () => document.removeEventListener('touchmove', preventPullToRefresh);
+  }, []);
+
   if (isLoading) {
     return <div className="min-h-screen bg-[#121212] flex items-center justify-center text-emerald-500">Loading...</div>;
   }
@@ -42,13 +57,25 @@ const App = () => {
   return (
     <PlayerProvider>
       <div className="flex h-screen bg-[#121212] text-white overflow-hidden font-sans selection:bg-emerald-500/30 selection:text-emerald-500">
-        <LeftSidebar
-          onUpload={() => setIsUploadModalOpen(true)}
-          onCreateVault={() => setIsCreateVaultModalOpen(true)}
-        />
-        <MainView onUpload={() => setIsUploadModalOpen(true)} />
-        <RightSidebar />
-        <PlayerBar />
+        {/* Desktop Layout */}
+        <div className="hidden md:flex flex-1 h-full">
+          <LeftSidebar
+            onUpload={() => setIsUploadModalOpen(true)}
+            onCreateVault={() => setIsCreateVaultModalOpen(true)}
+          />
+          <MainView onUpload={() => setIsUploadModalOpen(true)} />
+          <RightSidebar />
+          <PlayerBar />
+        </div>
+
+        {/* Mobile Layout */}
+        <div className="flex md:hidden flex-col flex-1 h-full">
+          <MainView onUpload={() => setIsUploadModalOpen(true)} />
+          <MobilePlayerBar />
+          <MobileNavigation
+            onLibrary={() => setIsCreateVaultModalOpen(true)}
+          />
+        </div>
 
         <UploadModal
           isOpen={isUploadModalOpen}
@@ -58,6 +85,9 @@ const App = () => {
           isOpen={isCreateVaultModalOpen}
           onClose={() => setIsCreateVaultModalOpen(false)}
         />
+
+        {/* PWA Install Prompt */}
+        <InstallPrompt />
       </div>
     </PlayerProvider>
   );

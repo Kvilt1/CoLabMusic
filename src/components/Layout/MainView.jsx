@@ -6,33 +6,9 @@ import VaultSettings from '../VaultSettings';
 import UserMenu from '../UserMenu';
 import clsx from 'clsx';
 import { usePlayer } from '../../context/PlayerContext';
+import { Upload } from 'lucide-react';
 
 const MainView = ({ onUpload }) => {
-    // We need to trigger the upload modal which is lifted to App.jsx
-    // But MainView is rendered by App.jsx, but App.jsx doesn't pass props to MainView in the current code I wrote.
-    // In App.jsx: <LeftSidebar onUpload={...} /> ... <MainView />
-    // So MainView doesn't have the onUpload prop.
-    // I should add it to App.jsx -> MainView, OR rely on a global UI context (overkill).
-    // Let's use the explicit prop method, but I need to update App.jsx too.
-    // WAIT. The "Upload Music" button was in the header of the main view in the ORIGINAL App.jsx.
-    // Let's see if I can move that button to the sidebar or keep it here.
-    // The previous design had it in the sticky header.
-    // I will accept an `onUpload` prop if possible, or context.
-    // But wait, I can just use the LeftSidebar button for now?
-    // The user explicitly asked for "Upload Music" button in the header in the original code.
-    // I will check the original App.jsx code again via memory or what I saw.
-    // It had: <button onClick={() => setIsUploadModalOpen(true)} ...>Upload Music</button> inside the <div className="sticky top-0 ...">
-
-    // For now, I will render the `MainView` structure. I'll add `onUpload` to props.
-    // BUT I can't easily change App.jsx again right now without more tool calls.
-    // The LeftSidebar HAS an upload button. Is that sufficient?
-    // The LeftSidebar has `onUpload`.
-    // The Header also had one.
-    // I'll make MainView accept `className` and children if needed, but primarily it's the specific view.
-
-    // Let's assume for now I will rely on Sidebar for upload, OR I will add the prop to App.jsx in a moment.
-    // I will wire up the scroll logic too.
-
     const [scrolled, setScrolled] = useState(false);
 
     useEffect(() => {
@@ -53,25 +29,21 @@ const MainView = ({ onUpload }) => {
     // Show search view when in search mode
     if (currentView === 'search') {
         return (
-            <main id="main-scroll" className="flex-1 overflow-y-auto relative bg-[#121212] m-2 rounded-lg ml-0 overflow-hidden custom-scrollbar">
+            <main id="main-scroll" className="flex-1 overflow-y-auto relative bg-dark-900 m-2 rounded-2xl ml-0 overflow-hidden custom-scrollbar border border-dark-700 shadow-2xl">
                 {/* Header for Search View */}
-                <div className="sticky top-0 z-30 px-8 py-4 flex items-center justify-between bg-[#121212]">
+                <div className="sticky top-0 z-30 px-8 py-4 flex items-center justify-between bg-dark-900/95 backdrop-blur-xl border-b border-white/5">
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
-                            <button className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white cursor-not-allowed opacity-50">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
-                            </button>
-                            <button className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white cursor-not-allowed opacity-50">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
-                            </button>
+                             {/* Navigation Placeholders */}
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
                         <button
                             onClick={onUpload}
-                            className="px-4 py-1.5 bg-white text-black text-sm font-bold rounded-full hover:scale-105 transition"
+                            className="px-5 py-2 bg-white text-black text-sm font-bold rounded-full hover:scale-105 transition hover:bg-orange-500 hover:text-white flex items-center gap-2 shadow-lg"
                         >
-                            Upload Music
+                            <Upload className="w-4 h-4" />
+                            Upload
                         </button>
                         <UserMenu />
                     </div>
@@ -83,8 +55,8 @@ const MainView = ({ onUpload }) => {
 
     if (currentView === 'vault-settings') {
         return (
-            <main id="main-scroll" className="flex-1 overflow-y-auto relative bg-[#121212] m-2 rounded-lg ml-0 overflow-hidden custom-scrollbar">
-                <div className="sticky top-0 z-30 px-8 py-4 flex items-center justify-between bg-[#121212] backdrop-blur-md shadow-lg">
+            <main id="main-scroll" className="flex-1 overflow-y-auto relative bg-dark-900 m-2 rounded-2xl ml-0 overflow-hidden custom-scrollbar border border-dark-700 shadow-2xl">
+                <div className="sticky top-0 z-30 px-8 py-4 flex items-center justify-between bg-dark-900/90 backdrop-blur-md border-b border-white/5">
                     <div className="flex items-center gap-4">
                         {/* Placeholder for navigation history if needed */}
                     </div>
@@ -98,25 +70,22 @@ const MainView = ({ onUpload }) => {
     }
 
     return (
-        <main id="main-scroll" className="flex-1 overflow-y-auto relative bg-[#121212] m-2 rounded-lg ml-0 overflow-hidden custom-scrollbar">
+        <main id="main-scroll" className="flex-1 overflow-y-auto relative bg-dark-900 m-2 rounded-2xl ml-0 overflow-hidden custom-scrollbar border border-dark-700 shadow-2xl">
             {/* Header Gradient / Glass */}
-            <div className={clsx("sticky top-0 z-30 px-8 py-4 flex items-center justify-between transition-all duration-300", scrolled ? "bg-[#121212]/90 backdrop-blur-md shadow-lg" : "bg-transparent")}>
+            <div className={clsx("sticky top-0 z-30 px-8 py-4 flex items-center justify-between transition-all duration-300", scrolled ? "bg-dark-900/90 backdrop-blur-md shadow-lg border-b border-white/5" : "bg-transparent")}>
                 <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        <button className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white cursor-not-allowed opacity-50">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
-                        </button>
-                        <button className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white cursor-not-allowed opacity-50">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
-                        </button>
-                    </div>
+                    {/* Navigation placeholders removed or kept subtle */}
                 </div>
                 <div className="flex items-center gap-4">
                     <button
                         onClick={onUpload}
-                        className="px-4 py-1.5 bg-white text-black text-sm font-bold rounded-full hover:scale-105 transition"
+                        className={clsx(
+                            "px-5 py-2 text-sm font-bold rounded-full hover:scale-105 transition flex items-center gap-2 shadow-lg",
+                            scrolled ? "bg-white text-black hover:bg-orange-500 hover:text-white" : "bg-black/40 text-white backdrop-blur-md hover:bg-white hover:text-black"
+                        )}
                     >
-                        Upload Music
+                        <Upload className="w-4 h-4" />
+                        Upload
                     </button>
                     <UserMenu />
                 </div>
@@ -125,7 +94,7 @@ const MainView = ({ onUpload }) => {
             <Hero />
             <SongList onUpload={onUpload} />
 
-            <div className="h-20"></div> {/* Spacer for player */}
+            <div className="h-32"></div> {/* Spacer for floating player */}
         </main>
     );
 };

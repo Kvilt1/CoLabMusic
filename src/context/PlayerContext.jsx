@@ -856,6 +856,26 @@ export const PlayerProvider = ({ children }) => {
         });
     };
 
+    // Update Song
+    const updateSong = async (songId, updates) => {
+        // Optimistic update
+        const previousSongs = allSongs;
+        setAllSongs(prev => prev.map(s => s.id === songId ? { ...s, ...updates } : s));
+
+        const { error } = await supabase
+            .from('songs')
+            .update(updates)
+            .eq('id', songId);
+
+        if (error) {
+            console.error('Error updating song:', error);
+            // Rollback
+            setAllSongs(previousSongs);
+            return { error };
+        }
+        return { error: null };
+    };
+
     // Delete Song
     const deleteSong = async (songId) => {
         // Find the song to get its URL for storage deletion
@@ -962,6 +982,7 @@ export const PlayerProvider = ({ children }) => {
         viewData,
         groups,
         songs: filteredSongs,
+        allSongs, // Export all songs for search functionality
         currentGroup,
         currentTime,
         duration,
@@ -989,6 +1010,7 @@ export const PlayerProvider = ({ children }) => {
         updateVault,
         deleteVault,
         deleteSong,
+        updateSong,
         addSongToState,
         
         // Vault Members & Invite Codes

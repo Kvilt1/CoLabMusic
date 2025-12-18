@@ -1,6 +1,6 @@
 import React from 'react';
 import { usePlayer } from '../../context/PlayerContext';
-import { Music2, X } from 'lucide-react';
+import { Music2, X, ListMusic, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 
 const RightSidebar = () => {
@@ -18,60 +18,54 @@ const RightSidebar = () => {
 
     if (!isQueueOpen) return null;
 
-    // FIND next up context songs
-    // We need to know where we are in the main queue strings
-    // But queue is the full list.
-    // In PlayerContext we track queueIndex. But we don't export it? 
-    // We can infer it or export it. In "nextSong" we use activeIndex.
-    // Let's just filter queue by index > currentSong index?
-    // User might have duplicates, so ID matching is risky if duplicates allowed.
-    // For now, assuming standard index finding for simplicity of display.
-
     const currentIndex = currentSong ? queue.findIndex(s => s.id === currentSong.id) : -1;
     const nextInContext = currentIndex !== -1 ? queue.slice(currentIndex + 1) : queue;
 
     const sourceLabel = currentView === 'all' ? 'Home Stream' : (currentGroup?.name || 'Unknown Vault');
 
-    // Refactored to be a flex item (no fixed positioning)
-    // Matches main view styling: rounded, margins
     return (
-        <aside className="w-[400px] bg-[#121212] flex-shrink-0 flex flex-col overflow-hidden m-2 ml-0 rounded-lg shadow-xl border-l border-[#282828] z-30 relative">
-            <div className="p-4 flex items-center justify-between bg-[#121212] z-10">
-                <h2 className="text-lg font-bold text-white">Queue</h2>
-                <div className="flex items-center gap-4">
+        <aside className="w-[350px] bg-dark-900 flex-shrink-0 flex flex-col overflow-hidden m-2 ml-0 rounded-2xl shadow-2xl border border-dark-700 z-30 relative animate-in slide-in-from-right-10 duration-300">
+            <div className="p-5 flex items-center justify-between bg-dark-900/95 backdrop-blur-sm border-b border-white/5 z-10">
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <ListMusic className="w-5 h-5 text-orange-500" />
+                    Queue
+                </h2>
+                <div className="flex items-center gap-3">
                     {userQueue.length > 0 && (
-                        <button className="text-xs font-bold text-gray-400 hover:text-white transition uppercase">Clear queue</button>
+                        <button className="p-2 text-gray-400 hover:text-red-500 transition rounded-full hover:bg-white/5" title="Clear Queue">
+                            <Trash2 className="w-4 h-4" />
+                        </button>
                     )}
                     <button
                         onClick={toggleQueue}
-                        className="text-gray-400 hover:text-white transition p-2 hover:bg-[#282828] rounded-full"
+                        className="text-gray-400 hover:text-white transition p-2 hover:bg-white/10 rounded-full"
                     >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 pb-4 custom-scrollbar space-y-8">
+            <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar space-y-8 pb-32">
 
                 {/* Now Playing Section */}
                 {currentSong && (
                     <div>
-                        <h3 className="text-sm font-bold text-gray-400 mb-3">Now playing</h3>
-                        <div className="flex items-center gap-3 p-2 rounded-md bg-[#282828]/50 hover:bg-[#282828] transition group cursor-pointer border-l-4 border-emerald-500">
-                            <div className="w-10 h-10 bg-gray-800 rounded flex items-center justify-center flex-shrink-0 relative overflow-hidden">
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 px-1">Now playing</h3>
+                        <div className="flex items-center gap-4 p-3 rounded-xl bg-gradient-to-r from-orange-500/10 to-transparent border border-orange-500/20 hover:border-orange-500/40 transition group cursor-pointer shadow-lg">
+                            <div className="w-12 h-12 bg-dark-800 rounded-lg flex items-center justify-center flex-shrink-0 relative overflow-hidden shadow-inner">
                                 {(currentSong.cover_url || currentSong.cover) ? (
-                                    <img src={currentSong.cover_url || currentSong.cover} alt="Art" className="w-full h-full object-cover rounded" />
+                                    <img src={currentSong.cover_url || currentSong.cover} alt="Art" className="w-full h-full object-cover" />
                                 ) : (
-                                    <Music2 className="text-gray-500 w-5 h-5" />
+                                    <Music2 className="text-gray-600 w-6 h-6" />
                                 )}
                                 {isPlaying && (
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-[1px]">
+                                        <div className="w-3 h-3 bg-orange-500 rounded-full animate-pulse shadow-[0_0_10px_#ff5500]"></div>
                                     </div>
                                 )}
                             </div>
                             <div className="overflow-hidden flex-1">
-                                <div className="text-sm font-semibold text-emerald-500 truncate">{currentSong.title}</div>
+                                <div className="text-sm font-bold text-orange-500 truncate">{currentSong.title}</div>
                                 <div className="text-xs text-gray-400 truncate">{currentSong.artist}</div>
                             </div>
                         </div>
@@ -81,31 +75,31 @@ const RightSidebar = () => {
                 {/* User Queue (Next in Queue) */}
                 {userQueue.length > 0 && (
                     <div>
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-sm font-bold text-gray-400">Next in queue</h3>
+                        <div className="flex items-center justify-between mb-3 px-1">
+                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Next in queue</h3>
                         </div>
                         <div className="space-y-1">
                             {userQueue.map((song, i) => (
                                 <div
                                     key={`uq-${song.id}-${i}`}
-                                    className="flex items-center gap-3 p-2 rounded-md hover:bg-[#2a2a2a] transition group cursor-pointer"
-                                    onClick={() => playSong(song)} // Should this play from here? Ideally specific function. For now plays song.
+                                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition group cursor-pointer border border-transparent hover:border-white/5"
+                                    onClick={() => playSong(song)}
                                 >
-                                    <div className="w-10 h-10 bg-[#282828] rounded flex items-center justify-center flex-shrink-0 relative overflow-hidden">
+                                    <div className="w-10 h-10 bg-dark-800 rounded-lg flex items-center justify-center flex-shrink-0 relative overflow-hidden">
                                         {(song.cover_url || song.cover) ? (
                                             <img src={song.cover_url || song.cover} alt="Art" className="w-full h-full object-cover" />
                                         ) : (
-                                            <Music2 className="text-gray-600 w-5 h-5" />
+                                            <Music2 className="text-gray-600 w-4 h-4" />
                                         )}
-                                        <div className="absolute inset-0 bg-black/60 hidden group-hover:flex items-center justify-center">
-                                            <div className="w-2 h-2 bg-white rounded-full"></div>
+                                        <div className="absolute inset-0 bg-black/60 hidden group-hover:flex items-center justify-center backdrop-blur-[1px]">
+                                            <Play className="w-4 h-4 text-white fill-current" />
                                         </div>
                                     </div>
                                     <div className="overflow-hidden flex-1">
-                                        <div className="text-sm font-medium text-emerald-400 truncate">{song.title}</div>
-                                        <div className="text-xs text-gray-400 truncate">{song.artist}</div>
+                                        <div className="text-sm font-medium text-white truncate group-hover:text-orange-400 transition">{song.title}</div>
+                                        <div className="text-xs text-gray-500 truncate">{song.artist}</div>
                                     </div>
-                                    <div className="text-xs text-gray-500 font-mono">
+                                    <div className="text-xs text-gray-600 font-mono">
                                         {song.duration}
                                     </div>
                                 </div>
@@ -117,29 +111,29 @@ const RightSidebar = () => {
                 {/* Context Queue (Next from Vault) */}
                 {nextInContext.length > 0 && (
                     <div>
-                        <h3 className="text-sm font-bold text-gray-400 mb-3">Next from: <span className="text-white">{sourceLabel}</span></h3>
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 px-1">Next from: <span className="text-gray-300">{sourceLabel}</span></h3>
                         <div className="space-y-1">
                             {nextInContext.map((song, i) => (
                                 <div
                                     key={`cq-${song.id}-${i}`}
                                     onClick={() => playSong(song)}
-                                    className="flex items-center gap-3 p-2 rounded-md hover:bg-[#2a2a2a] transition group cursor-pointer opacity-80 hover:opacity-100"
+                                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition group cursor-pointer border border-transparent hover:border-white/5 opacity-70 hover:opacity-100"
                                 >
-                                    <div className="w-10 h-10 bg-[#282828] rounded flex items-center justify-center flex-shrink-0 relative overflow-hidden">
+                                    <div className="w-10 h-10 bg-dark-800 rounded-lg flex items-center justify-center flex-shrink-0 relative overflow-hidden">
                                         {(song.cover_url || song.cover) ? (
                                             <img src={song.cover_url || song.cover} alt="Art" className="w-full h-full object-cover" />
                                         ) : (
-                                            <Music2 className="text-gray-600 w-5 h-5" />
+                                            <Music2 className="text-gray-600 w-4 h-4" />
                                         )}
-                                        <div className="absolute inset-0 bg-black/60 hidden group-hover:flex items-center justify-center">
-                                            <div className="w-0 h-0 border-t-[5px] border-t-transparent border-l-[8px] border-l-white border-b-[5px] border-b-transparent ml-0.5"></div>
+                                        <div className="absolute inset-0 bg-black/60 hidden group-hover:flex items-center justify-center backdrop-blur-[1px]">
+                                            <Play className="w-4 h-4 text-white fill-current" />
                                         </div>
                                     </div>
                                     <div className="overflow-hidden flex-1">
-                                        <div className="text-sm font-medium text-white truncate group-hover:text-emerald-400 transition">{song.title}</div>
-                                        <div className="text-xs text-gray-400 truncate">{song.artist}</div>
+                                        <div className="text-sm font-medium text-gray-300 truncate group-hover:text-orange-400 transition">{song.title}</div>
+                                        <div className="text-xs text-gray-500 truncate">{song.artist}</div>
                                     </div>
-                                    <div className="text-xs text-gray-500 font-mono">
+                                    <div className="text-xs text-gray-600 font-mono">
                                         {song.duration}
                                     </div>
                                 </div>
@@ -149,12 +143,10 @@ const RightSidebar = () => {
                 )}
 
                 {userQueue.length === 0 && nextInContext.length === 0 && (
-                    <div className="text-center text-gray-500 py-10 text-sm">
+                    <div className="text-center text-gray-600 py-10 text-sm italic">
                         End of queue
                     </div>
                 )}
-
-                <div className="h-24"></div> {/* Spacer for fixed PlayerBar */}
             </div>
         </aside>
     );

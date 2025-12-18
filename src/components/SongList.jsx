@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, BarChart2, Music, Search } from 'lucide-react';
+import { Play, BarChart2, Music, Search, Clock, Calendar } from 'lucide-react';
 import { usePlayer } from '../context/PlayerContext';
 import SongMenu from './SongMenu';
 import clsx from 'clsx';
@@ -43,42 +43,43 @@ const SongList = ({ onUpload }) => {
     const { songs, isPlaying, currentSong, playSong, currentView, groups, switchView, listSearchQuery, setListSearchQuery } = usePlayer();
 
     return (
-        <div className="flex flex-col pb-32">
+        <div className="flex flex-col pb-40 px-8">
             {/* Table Header */}
-            <div className="sticky top-[64px] bg-[#121212] z-10 grid grid-cols-[40px_4fr_2fr_2fr_1fr_40px] gap-4 text-gray-400 text-xs border-b border-[#282828] pb-2 mb-4 px-4 uppercase font-bold tracking-wider">
+            <div className="sticky top-[72px] bg-dark-900 z-10 grid grid-cols-[40px_4fr_2fr_2fr_1fr_40px] gap-4 text-gray-500 text-xs font-bold tracking-wider uppercase border-b border-white/5 pb-3 mb-2 px-4 transition-colors">
                 <div className="text-center">#</div>
-                <div>Title</div>
-                <div>Album</div>
-                <div>Date Added</div>
-                <div>Vault</div>
+                <div className="flex items-center gap-1">Title</div>
+                <div className="flex items-center gap-1">Album</div>
+                <div className="flex items-center gap-1"><Calendar className="w-3 h-3" /> Date</div>
+                <div className="flex items-center gap-1">Vault</div>
+                <div className="flex justify-end"><Clock className="w-3 h-3" /></div>
             </div>
 
             {songs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-32 text-gray-500 animate-fade-in">
                     {listSearchQuery ? (
                         <>
-                            <div className="w-16 h-16 bg-[#1e1e1e] rounded-full flex items-center justify-center mb-6 shadow-lg">
-                                <Search className="w-8 h-8 opacity-50 text-gray-400" />
+                            <div className="w-20 h-20 bg-dark-800 rounded-full flex items-center justify-center mb-6 shadow-xl border border-white/5">
+                                <Search className="w-10 h-10 opacity-50 text-orange-500" />
                             </div>
-                            <h3 className="text-xl font-bold mb-2 text-white">No matches found</h3>
-                            <p className="text-sm text-gray-400 mb-6">We couldn't find any songs matching "{listSearchQuery}"</p>
+                            <h3 className="text-2xl font-bold mb-2 text-white">No matches found</h3>
+                            <p className="text-base text-gray-400 mb-8">We couldn't find any songs matching "{listSearchQuery}"</p>
                             <button 
                                 onClick={() => setListSearchQuery('')} 
-                                className="px-6 py-2 bg-white text-black font-bold rounded-full hover:scale-105 transition shadow-lg text-sm"
+                                className="px-8 py-3 bg-white text-black font-bold rounded-full hover:scale-105 hover:bg-orange-500 hover:text-white transition shadow-lg text-sm"
                             >
                                 Clear filter
                             </button>
                         </>
                     ) : (
                         <>
-                            <div className="w-16 h-16 bg-[#1e1e1e] rounded-full flex items-center justify-center mb-6">
-                                <Music className="w-8 h-8 opacity-50 text-gray-400" />
+                            <div className="w-24 h-24 bg-dark-800 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(0,0,0,0.5)] border border-white/5">
+                                <Music className="w-12 h-12 opacity-50 text-gray-600" />
                             </div>
-                            <h3 className="text-xl font-bold mb-2 text-white">It's a bit quiet here</h3>
-                            <p className="text-sm text-gray-400 mb-6">This vault doesn't have any songs yet.</p>
+                            <h3 className="text-2xl font-bold mb-3 text-white">It's a bit quiet here</h3>
+                            <p className="text-base text-gray-400 mb-8 max-w-md text-center">This vault is waiting for its first track. Upload some music to get the party started.</p>
                             <button 
                                 onClick={onUpload} 
-                                className="px-6 py-2 bg-emerald-500 text-black font-bold rounded-full hover:bg-emerald-400 hover:scale-105 transition shadow-lg text-sm"
+                                className="px-8 py-3 bg-orange-500 text-white font-bold rounded-full hover:bg-orange-400 hover:scale-105 transition shadow-[0_4px_20px_rgba(255,85,0,0.3)] text-sm tracking-wide"
                             >
                                 Upload Music
                             </button>
@@ -86,76 +87,89 @@ const SongList = ({ onUpload }) => {
                     )}
                 </div>
             ) : (
-                songs.map((song, index) => {
-                    const group = groups.find(g => g.id === song.group_id);
-                    const isCurrent = currentSong?.id === song.id;
+                <div className="space-y-1">
+                    {songs.map((song, index) => {
+                        const group = groups.find(g => g.id === song.group_id);
+                        const isCurrent = currentSong?.id === song.id;
 
-                    return (
-                        <div
-                            key={song.id}
-                            onClick={() => playSong(song)}
-                            className="group grid grid-cols-[40px_4fr_2fr_2fr_1fr_40px] gap-4 px-4 py-2 rounded-md hover:bg-white/10 transition items-center text-sm text-gray-400 border-b border-transparent hover:border-transparent cursor-pointer relative"
-                        >
-                            {/* Index / Play Btn */}
-                            <div className="flex items-center justify-center relative w-5">
-                                <span className={clsx("font-mono", isCurrent && isPlaying ? "text-emerald-500 hidden" : "group-hover:hidden text-gray-500")}>
-                                    {isCurrent && isPlaying ? "" : index + 1}
-                                </span>
-
-                                {/* Play Icon (Hover) */}
-                                <Play className={clsx("w-4 h-4 fill-white text-white absolute left-0.5 hidden group-hover:block", isCurrent && isPlaying && "!hidden")} />
-
-                                {/* Playing Icon (Active) */}
-                                {isCurrent && isPlaying && <BarChart2 className="w-4 h-4 text-emerald-500 block" />}
-                            </div>
-
-                            {/* Title/Image */}
-                            <div className="flex items-center gap-4 overflow-hidden">
-                                <div className="w-10 h-10 bg-[#333] flex-shrink-0 rounded flex items-center justify-center relative overflow-hidden">
-                                    {song.cover_url ? (
-                                        <img src={song.cover_url} className="w-full h-full object-cover" alt="Art" />
-                                    ) : (
-                                        <Music className="w-5 h-5 text-gray-500" />
-                                    )}
-                                </div>
-                                <div className="flex flex-col overflow-hidden">
-                                    <span className={clsx("font-medium truncate mb-0.5 hover:underline decoration-white/50", isCurrent ? "text-emerald-500" : "text-white")}>
-                                        {song.title}
-                                    </span>
-                                    <span className="text-xs group-hover:text-white transition truncate hover:underline decoration-white/50">
-                                        {song.artist}
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Album */}
-                            <div className="truncate group-hover:text-white transition hover:underline decoration-white/50">{song.album}</div>
-
-                            {/* Date */}
-                            <div 
-                                className="truncate group-hover:text-white transition cursor-default"
-                                title={formatFullDate(song.created_at)}
+                        return (
+                            <div
+                                key={song.id}
+                                onClick={() => playSong(song)}
+                                className={clsx(
+                                    "group grid grid-cols-[40px_4fr_2fr_2fr_1fr_40px] gap-4 px-4 py-3 rounded-xl transition items-center text-sm cursor-pointer relative border border-transparent",
+                                    isCurrent 
+                                        ? "bg-white/5 border-orange-500/20 shadow-[0_0_15px_rgba(0,0,0,0.2)]" 
+                                        : "hover:bg-white/5 hover:border-white/5"
+                                )}
                             >
-                                {formatRelativeTime(song.created_at)}
-                            </div>
+                                {/* Index / Play Btn */}
+                                <div className="flex items-center justify-center relative w-5">
+                                    <span className={clsx("font-mono transition-all duration-200", isCurrent && isPlaying ? "hidden" : "group-hover:hidden text-gray-500", isCurrent && !isPlaying && "text-orange-500 font-bold")}>
+                                        {index + 1}
+                                    </span>
 
-                            {/* Vault */}
-                            <div className="flex items-center gap-2 truncate">
-                                <button className="hover:text-white hover:underline truncate" onClick={(e) => { e.stopPropagation(); switchView(group?.id || 'all'); }}>
-                                    {group?.name || 'Unknown'}
-                                </button>
-                            </div>
+                                    {/* Play Icon (Hover) */}
+                                    <Play className={clsx("w-4 h-4 fill-white text-white absolute left-0.5 hidden group-hover:block transition-all", isCurrent && isPlaying && "!hidden")} />
 
-                            {/* Duration / Menu */}
-                            <div className="text-right font-mono text-xs group-hover:hidden">
-                                {song.duration}
+                                    {/* Playing Icon (Active) */}
+                                    {isCurrent && isPlaying && <BarChart2 className="w-4 h-4 text-orange-500 block animate-pulse" />}
+                                </div>
+
+                                {/* Title/Image */}
+                                <div className="flex items-center gap-4 overflow-hidden">
+                                    <div className="w-10 h-10 bg-dark-800 rounded-lg flex-shrink-0 flex items-center justify-center relative overflow-hidden shadow-md group-hover:shadow-orange-500/10 transition-shadow">
+                                        {song.cover_url ? (
+                                            <img src={song.cover_url} className="w-full h-full object-cover" alt="Art" />
+                                        ) : (
+                                            <Music className="w-5 h-5 text-gray-600" />
+                                        )}
+                                        {isCurrent && (
+                                            <div className="absolute inset-0 bg-orange-500/20 ring-1 ring-inset ring-orange-500/50"></div>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-col overflow-hidden">
+                                        <span className={clsx("font-bold truncate mb-0.5 transition-colors", isCurrent ? "text-orange-500" : "text-white group-hover:text-white")}>
+                                            {song.title}
+                                        </span>
+                                        <span className="text-xs text-gray-400 group-hover:text-white transition truncate">
+                                            {song.artist}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Album */}
+                                <div className="truncate text-gray-400 group-hover:text-white transition">{song.album || <span className="text-gray-600">-</span>}</div>
+
+                                {/* Date */}
+                                <div 
+                                    className="truncate text-gray-400 group-hover:text-white transition cursor-default"
+                                    title={formatFullDate(song.created_at)}
+                                >
+                                    {formatRelativeTime(song.created_at)}
+                                </div>
+
+                                {/* Vault */}
+                                <div className="flex items-center gap-2 truncate">
+                                    <button 
+                                        className="text-gray-400 hover:text-orange-500 hover:underline truncate transition" 
+                                        onClick={(e) => { e.stopPropagation(); switchView(group?.id || 'all'); }}
+                                    >
+                                        {group?.name || 'Unknown'}
+                                    </button>
+                                </div>
+
+                                {/* Duration / Menu */}
+                                <div className="text-right font-mono text-xs text-gray-500 group-hover:hidden">
+                                    {song.duration}
+                                </div>
+                                <div className="hidden group-hover:flex justify-end">
+                                    <SongMenu song={song} />
+                                </div>
                             </div>
-                            <div className="hidden group-hover:flex justify-end">
-                                <SongMenu song={song} />
-                            </div>
-                        </div>
-                    );
-                })
+                        );
+                    })}
+                </div>
             )}
         </div>
     );

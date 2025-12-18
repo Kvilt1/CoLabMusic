@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Image as ImageIcon } from 'lucide-react';
+import { X, Image as ImageIcon, Check } from 'lucide-react';
 import { usePlayer } from '../context/PlayerContext';
 import { useToast } from '../context/ToastContext';
 
@@ -38,24 +38,26 @@ const CreateVaultModal = ({ isOpen, onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-70 flex items-center justify-center backdrop-blur-sm">
-            <div className="bg-[#282828] rounded-xl p-8 w-full max-w-sm shadow-2xl border border-[#333] animate-in fade-in zoom-in duration-200">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold">Create New Vault</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white bg-[#333] p-1 rounded-full"><X className="w-5 h-5" /></button>
+        <div className="fixed inset-0 bg-dark-900/80 z-70 flex items-center justify-center backdrop-blur-md animate-in fade-in duration-200">
+            <div className="bg-dark-800 rounded-2xl p-8 w-full max-w-sm shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/5 animate-in zoom-in-95 duration-200">
+                <div className="flex justify-between items-center mb-8">
+                    <h2 className="text-2xl font-bold text-white tracking-tight">Create Vault</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition"><X className="w-5 h-5" /></button>
                 </div>
 
-                <form className="space-y-6" onSubmit={handleSubmit}>
+                <form className="space-y-8" onSubmit={handleSubmit}>
 
                     {/* Cover Art Upload */}
                     <div className="flex justify-center">
-                        <div className="relative w-32 h-32 bg-[#181818] border border-[#333] rounded-lg flex items-center justify-center overflow-hidden hover:border-emerald-500 transition group cursor-pointer">
+                        <div className="relative w-40 h-40 bg-dark-900 border-2 border-dashed border-white/10 rounded-2xl flex items-center justify-center overflow-hidden hover:border-orange-500 transition-colors group cursor-pointer shadow-inner">
                             {coverPreview ? (
                                 <img src={coverPreview} alt="Cover Preview" className="w-full h-full object-cover" />
                             ) : (
                                 <div className="text-center">
-                                    <ImageIcon className="w-8 h-8 text-gray-600 mx-auto group-hover:text-gray-400" />
-                                    <span className="text-[10px] text-gray-600 uppercase font-bold mt-2 block">Add Cover</span>
+                                    <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-orange-500/20 group-hover:text-orange-500 transition-colors">
+                                        <ImageIcon className="w-6 h-6 text-gray-500 group-hover:text-orange-500 transition-colors" />
+                                    </div>
+                                    <span className="text-xs text-gray-500 uppercase font-bold tracking-wider group-hover:text-gray-300">Add Cover</span>
                                 </div>
                             )}
                             <input
@@ -69,19 +71,24 @@ const CreateVaultModal = ({ isOpen, onClose }) => {
 
                     {/* Vault Name */}
                     <div>
-                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wide block mb-1">Vault Name</label>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2 pl-1">Vault Name</label>
                         <input
                             type="text"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="My Awesome Vault"
                             autoFocus
-                            className="w-full bg-[#181818] border border-[#333] rounded p-3 text-sm focus:border-emerald-500 focus:outline-none text-white transition-colors"
+                            className="w-full bg-dark-900 border border-white/10 rounded-xl p-4 text-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 focus:outline-none transition-all placeholder-gray-600 font-medium"
                         />
                     </div>
 
                     <div className="pt-2">
-                        <button type="submit" disabled={!name} className="w-full bg-emerald-500 text-black font-bold py-3 rounded-full hover:scale-[1.02] hover:bg-emerald-400 transition shadow-lg text-sm uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed">
+                        <button 
+                            type="submit" 
+                            disabled={!name} 
+                            className="w-full bg-orange-500 text-white font-bold py-4 rounded-xl hover:bg-orange-600 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg text-sm uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                        >
+                            <Check className="w-5 h-5" />
                             Create Vault
                         </button>
                     </div>

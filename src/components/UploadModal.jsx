@@ -4,6 +4,7 @@ import { usePlayer } from '../context/PlayerContext';
 import { supabase } from '../supabaseClient';
 import * as tus from 'tus-js-client';
 import { useToast } from '../context/ToastContext';
+import clsx from 'clsx';
 
 const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
     const { groups, currentView } = usePlayer();
@@ -148,20 +149,8 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
         setUploadProgress(0);
 
         try {
-            // 1. Upload Audio using TUS for chunked upload / progress
-            // Note: Supabase Storage uses TUS under the hood. We can use supabase-js or tus-js-client.
-            // Using tus-js-client gives us fine-grained progress events which users expect.
-
             const fileName = `${Date.now()}-${audioFile.name}`;
             const { data: { session } } = await supabase.auth.getSession();
-
-            // NOTE: For anon uploads to work, RLS must be disabled or Policies allowing anon insert must exist.
-            // We are using standard supabase upload for simplicity first, as it handles auth better.
-            // Only if we need RESUMABLE uploads specifically for very large files do we strictly need TUS manually.
-            // User requested "Chunked upload for large files". 
-            // Supabase client uses TUS automatically for files > 6MB.
-            // BUT Supabase-js v2 doesn't expose the onProgress hook easily for the `upload` method wrapper.
-            // So we will use TUS client manually.
 
             const upload = new tus.Upload(audioFile, {
                 endpoint: `${supabase.supabaseUrl}/storage/v1/upload/resumable`,
@@ -224,6 +213,7 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
                                 cover_url: coverUrl,
                                 group_id: selectedVault,
                                 duration: duration, // Add calculated duration
+                                uploaded_by: session?.user?.id,
                             }
                         ])
                         .select();
@@ -254,12 +244,7 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
                 },
             });
 
-            // Start the upload
-            // Check if prior upload exists? No, just start.
-            // Note: TUS handling requires Bucket to be public? Or Auth token handles it.
-            // We passed the anon key as Bearer token.
             upload.findPreviousUploads().then(function (previousUploads) {
-                // Ask user if they want to resume? For now, just start fresh or resume latest if matches.
                 if (previousUploads.length) {
                     upload.resumeFromPreviousUpload(previousUploads[0]);
                 }
@@ -275,22 +260,22 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center backdrop-blur-sm">
-            <div className="bg-[#282828] rounded-xl p-8 w-full max-w-lg shadow-2xl border border-[#333] animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <div className="fixed inset-0 bg-dark-900/80 z-[70] flex items-center justify-center backdrop-blur-md animate-in fade-in duration-200">
+            <div className="bg-dark-800 rounded-2xl p-8 w-full max-w-lg shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/5 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold">Add to Vault</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white bg-[#333] p-1 rounded-full"><X className="w-5 h-5" /></button>
+                    <h2 className="text-2xl font-bold text-white">Add Music</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-full transition"><X className="w-5 h-5" /></button>
                 </div>
 
                 <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); uploadFile(); }}>
 
                     {/* No Vaults Warning */}
                     {!hasVaults && (
-                        <div className="p-4 bg-amber-500/20 text-amber-400 text-sm rounded-lg border border-amber-500/50 flex items-start gap-3">
-                            <div className="text-amber-500 mt-0.5">⚠️</div>
+                        <div className="p-4 bg-orange-500/10 text-orange-400 text-sm rounded-xl border border-orange-500/20 flex items-start gap-3">
+                            <div className="text-orange-500 mt-0.5">⚠️</div>
                             <div>
-                                <p className="font-semibold mb-1">No vaults available</p>
-                                <p className="text-amber-400/80">You need to create or join a vault before uploading music. Close this modal and create a new vault first.</p>
+                                <p className="font-bold mb-1">No vaults available</p>
+                                <p className="text-orange-400/80">You need to create or join a vault before uploading music.</p>
                             </div>
                         </div>
                     )}
@@ -301,66 +286,72 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
                         onClick={() => document.getElementById('audio-upload').click()}
-                        className={`border-2 border-dashed rounded-xl p-8 text-center transition cursor-pointer group relative
-                            ${isDragging ? 'border-emerald-500 bg-[#333]' : 'border-[#444] hover:border-white hover:bg-[#333]'}
-                            ${audioFile ? 'border-emerald-500/50 bg-[#333]/50' : ''}
-                        `}
+                        className={clsx(
+                            "border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer group relative overflow-hidden",
+                            isDragging 
+                                ? "border-orange-500 bg-orange-500/5 scale-[1.02]" 
+                                : "border-white/10 hover:border-orange-500/50 hover:bg-white/5",
+                            audioFile && "border-orange-500/30 bg-orange-500/5"
+                        )}
                     >
                         {audioFile ? (
-                            <div className="flex flex-col items-center">
-                                <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mb-4 text-emerald-500">
+                            <div className="flex flex-col items-center relative z-10">
+                                <div className="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center mb-4 text-orange-500 shadow-[0_0_20px_rgba(255,85,0,0.2)]">
                                     <Upload className="w-8 h-8" />
                                 </div>
-                                <p className="text-white font-bold truncate max-w-[200px]">{audioFile.name}</p>
-                                <p className="text-sm text-gray-500">{(audioFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                                <p className="text-white font-bold truncate max-w-[250px] mb-1">{audioFile.name}</p>
+                                <p className="text-sm text-gray-400">{(audioFile.size / (1024 * 1024)).toFixed(2)} MB</p>
                                 <button
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); setAudioFile(null); }}
-                                    className="mt-2 text-xs text-red-400 hover:text-red-300 z-10"
+                                    className="mt-3 px-3 py-1 bg-red-500/10 text-red-400 rounded-full text-xs hover:bg-red-500/20 transition font-bold"
                                 >
-                                    Remove File
+                                    Change File
                                 </button>
                             </div>
                         ) : (
-                            <>
-                                <div className="w-16 h-16 bg-[#333] rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition group-hover:bg-[#444]">
-                                    <Upload className="w-8 h-8 text-gray-400 group-hover:text-white" />
+                            <div className="relative z-10">
+                                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition duration-300 group-hover:bg-orange-500/20 group-hover:text-orange-500">
+                                    <Upload className="w-8 h-8 text-gray-500 group-hover:text-orange-500 transition-colors" />
                                 </div>
-                                <p className="text-base text-white font-bold">Drag and drop audio files</p>
-                                <p className="text-sm text-gray-500 mt-1">MP3, WAV, FLAC (Max 50MB)</p>
-                            </>
+                                <p className="text-lg text-white font-bold mb-1">Drag & Drop audio file</p>
+                                <p className="text-sm text-gray-500">MP3, WAV, FLAC (Max 50MB)</p>
+                            </div>
                         )}
                         <input id="audio-upload" type="file" accept="audio/*" onChange={handleFileSelect} className="hidden" />
                     </div>
 
                     {errorMessage && (
-                        <div className="p-3 bg-red-500/20 text-red-400 text-sm rounded border border-red-500/50">
+                        <div className="p-3 bg-red-500/10 text-red-400 text-sm rounded-xl border border-red-500/20 flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4" />
                             {errorMessage}
                         </div>
                     )}
 
                     {/* Progress Bar */}
                     {uploadStatus === 'uploading' && (
-                        <div className="w-full bg-[#333] rounded-full h-2.5 overflow-hidden">
-                            <div className="bg-emerald-500 h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                        <div className="w-full bg-dark-900 rounded-full h-2 overflow-hidden">
+                            <div className="bg-orange-500 h-full rounded-full transition-all duration-300 relative" style={{ width: `${uploadProgress}%` }}>
+                                <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                            </div>
                         </div>
                     )}
 
                     {uploadStatus === 'success' && (
-                        <div className="p-3 bg-emerald-500/20 text-emerald-400 text-sm rounded border border-emerald-500/50 text-center font-bold">
-                            Upload Complete!
+                        <div className="p-3 bg-emerald-500/10 text-emerald-400 text-sm rounded-xl border border-emerald-500/20 text-center font-bold flex items-center justify-center gap-2">
+                            <Check className="w-4 h-4" /> Upload Complete!
                         </div>
                     )}
 
-                    <div className="flex gap-4">
+                    <div className="flex gap-6">
                         {/* Cover Art Upload */}
                         <div className="w-32 flex-shrink-0">
-                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wide block mb-2">Cover Art</label>
-                            <div className="relative w-32 h-32 bg-[#181818] border border-[#333] rounded-lg flex items-center justify-center overflow-hidden hover:border-emerald-500 transition group cursor-pointer">
+                            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2 pl-1">Cover Art</label>
+                            <div className="relative w-32 h-32 bg-dark-900 border border-white/10 rounded-xl flex items-center justify-center overflow-hidden hover:border-orange-500 transition group cursor-pointer shadow-inner">
                                 {coverPreview ? (
                                     <img src={coverPreview} alt="Cover Preview" className="w-full h-full object-cover" />
                                 ) : (
-                                    <ImageIcon className="w-8 h-8 text-gray-600 group-hover:text-gray-400" />
+                                    <ImageIcon className="w-8 h-8 text-gray-600 group-hover:text-orange-500 transition-colors" />
                                 )}
                                 <input
                                     type="file"
@@ -374,24 +365,24 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
                         {/* Track Info */}
                         <div className="flex-1 space-y-4">
                             <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wide">Track Title</label>
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2 pl-1">Track Title</label>
                                 <input
                                     type="text"
                                     placeholder="Song Name"
                                     value={trackTitle}
                                     onChange={(e) => setTrackTitle(e.target.value)}
-                                    className="w-full bg-[#181818] border border-[#333] rounded p-3 text-sm focus:border-emerald-500 focus:outline-none text-white mt-1 transition-colors"
+                                    className="w-full bg-dark-900 border border-white/10 rounded-xl p-3 text-sm focus:border-orange-500 focus:outline-none text-white transition-colors"
                                 />
                             </div>
 
                             {/* Dynamic Vault Selection */}
                             <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wide">Select Vault</label>
-                                <div className="relative mt-1">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2 pl-1">Select Vault</label>
+                                <div className="relative">
                                     <select
                                         value={selectedVault}
                                         onChange={(e) => setSelectedVault(e.target.value)}
-                                        className="w-full bg-[#181818] border border-[#333] rounded p-3 text-sm focus:border-emerald-500 focus:outline-none text-white appearance-none"
+                                        className="w-full bg-dark-900 border border-white/10 rounded-xl p-3 text-sm focus:border-orange-500 focus:outline-none text-white appearance-none cursor-pointer"
                                     >
                                         {groups.map(group => (
                                             <option key={group.id} value={group.id}>{group.name}</option>
@@ -405,9 +396,9 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
 
                     {/* Multiple Artists */}
                     <div>
-                        <div className="flex justify-between items-center mb-1">
-                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wide">Artists</label>
-                            <button type="button" onClick={addArtist} className="text-xs text-emerald-500 hover:text-emerald-400 flex items-center gap-1">
+                        <div className="flex justify-between items-center mb-2 pl-1">
+                            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Artists</label>
+                            <button type="button" onClick={addArtist} className="text-xs text-orange-500 hover:text-orange-400 flex items-center gap-1 font-bold uppercase tracking-wide">
                                 <Plus className="w-3 h-3" /> Add Artist
                             </button>
                         </div>
@@ -419,13 +410,13 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
                                         value={artist}
                                         onChange={(e) => handleArtistChange(index, e.target.value)}
                                         placeholder="Artist Name"
-                                        className="flex-1 bg-[#181818] border border-[#333] rounded p-3 text-sm focus:border-emerald-500 focus:outline-none text-white transition-colors"
+                                        className="flex-1 bg-dark-900 border border-white/10 rounded-xl p-3 text-sm focus:border-orange-500 focus:outline-none text-white transition-colors"
                                     />
                                     {artists.length > 1 && (
                                         <button
                                             type="button"
                                             onClick={() => removeArtist(index)}
-                                            className="p-3 text-gray-500 hover:text-red-500 hover:bg-[#333] rounded transition"
+                                            className="p-3 text-gray-500 hover:text-red-500 hover:bg-white/5 rounded-xl transition"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
@@ -439,10 +430,10 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
                         <button
                             type="submit"
                             disabled={uploadStatus === 'uploading' || uploadStatus === 'success' || !hasVaults}
-                            className={`w-full font-bold py-3.5 rounded-full shadow-lg text-sm uppercase tracking-wide flex items-center justify-center gap-2
+                            className={`w-full font-bold py-4 rounded-xl shadow-lg text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all
                                 ${(uploadStatus === 'uploading' || !hasVaults)
-                                    ? 'bg-gray-600 text-gray-300 cursor-not-allowed'
-                                    : 'bg-emerald-500 text-black hover:scale-[1.02] hover:bg-emerald-400 transition'
+                                    ? 'bg-dark-900 text-gray-500 cursor-not-allowed border border-white/5'
+                                    : 'bg-orange-500 text-white hover:scale-[1.02] hover:bg-orange-600 active:scale-[0.98]'
                                 }
                             `}
                         >

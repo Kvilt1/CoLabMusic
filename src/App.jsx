@@ -38,15 +38,21 @@ const AppContent = ({
   }, [switchView]);
 
   return (
-    <div className="flex h-screen bg-[#121212] text-white overflow-hidden font-sans selection:bg-emerald-500/30 selection:text-emerald-500">
+    <div className="flex h-screen bg-dark-900 text-white overflow-hidden font-sans">
       <LeftSidebar
         onUpload={onUpload}
         onCreateVault={onCreateVault}
         onJoinVault={onJoinVault}
       />
-      <MainView onUpload={onUpload} />
-      <RightSidebar />
-      <PlayerBar />
+      
+      {/* Main Content Area - flex-1 to take remaining width */}
+      <div className="flex-1 flex overflow-hidden relative">
+        <MainView onUpload={onUpload} />
+        <RightSidebar />
+        
+        {/* Floating Player is absolute/fixed within the context or just overlays */}
+        <PlayerBar />
+      </div>
 
       <UploadModal
         isOpen={isUploadModalOpen}
@@ -88,7 +94,7 @@ const App = () => {
   }, []);
 
   if (isLoading) {
-    return <div className="min-h-screen bg-[#121212] flex items-center justify-center text-emerald-500">Loading...</div>;
+    return <div className="min-h-screen bg-dark-900 flex items-center justify-center text-orange-500">Loading...</div>;
   }
 
   if (!session) {

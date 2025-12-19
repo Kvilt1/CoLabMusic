@@ -3,7 +3,7 @@ import LeftSidebar from './components/Layout/LeftSidebar';
 import RightSidebar from './components/Layout/RightSidebar';
 import PlayerBar from './components/Layout/PlayerBar';
 import MainView from './components/Layout/MainView';
-import { PlayerProvider, usePlayer } from './context/PlayerContext';
+import { AppProvider, VaultProvider, AudioProvider, ToastProvider, useApp, useVaults } from './context';
 import UploadModal from './components/UploadModal';
 import Login from './components/Login';
 import { supabase } from './supabaseClient';
@@ -30,18 +30,19 @@ const productionServices = {
   realtime: new SupabaseRealtimeService(supabase)
 };
 
-const AppContent = ({ 
-  onUpload, 
-  onCreateVault, 
+const AppContent = ({
+  onUpload,
+  onCreateVault,
   onJoinVault,
-  isUploadModalOpen, 
-  setIsUploadModalOpen, 
-  isCreateVaultModalOpen, 
+  isUploadModalOpen,
+  setIsUploadModalOpen,
+  isCreateVaultModalOpen,
   setIsCreateVaultModalOpen,
   isJoinVaultModalOpen,
   setIsJoinVaultModalOpen
 }) => {
-  const { switchView, addSongToState } = usePlayer();
+  const { switchView } = useApp();
+  const { addSongToState } = useVaults();
 
   // Keyboard shortcut for search (Cmd/Ctrl + K)
   useEffect(() => {
@@ -90,39 +91,56 @@ const AppContent = ({
   );
 };
 
-const App = () => {
+// Main app wrapper with all providers
+const AppWithProviders = () => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isCreateVaultModalOpen, setIsCreateVaultModalOpen] = useState(false);
   const [isJoinVaultModalOpen, setIsJoinVaultModalOpen] = useState(false);
-  const [session, setSession] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setIsLoading(false);
-    });
+  return (
+    <ServiceProvider services={productionServices}>
+      <ToastProvider>
+        <AppProvider>
+          <AppRouter
+            isUploadModalOpen={isUploadModalOpen}
+            setIsUploadModalOpen={setIsUploadModalOpen}
+            isCreateVaultModalOpen={isCreateVaultModalOpen}
+            setIsCreateVaultModalOpen={setIsCreateVaultModalOpen}
+            isJoinVaultModalOpen={isJoinVaultModalOpen}
+            setIsJoinVaultModalOpen={setIsJoinVaultModalOpen}
+          />
+        </AppProvider>
+      </ToastProvider>
+    </ServiceProvider>
+  );
+};
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+// Router component that handles authentication
+const AppRouter = ({
+  isUploadModalOpen,
+  setIsUploadModalOpen,
+  isCreateVaultModalOpen,
+  setIsCreateVaultModalOpen,
+  isJoinVaultModalOpen,
+  setIsJoinVaultModalOpen
+}) => {
+  const { currentUser, isLoading } = useApp();
 
   if (isLoading) {
-    return <div className="min-h-screen bg-dark-900 flex items-center justify-center text-orange-500">Loading...</div>;
+    return (
+      <div className="min-h-screen bg-dark-900 flex items-center justify-center text-orange-500">
+        Loading...
+      </div>
+    );
   }
 
-  if (!session) {
+  if (!currentUser) {
     return <Login />;
   }
 
   return (
-    <ServiceProvider services={productionServices}>
-      <PlayerProvider>
+    <VaultProvider currentUser={currentUser}>
+      <AudioProvider>
         <AppContent
           onUpload={() => setIsUploadModalOpen(true)}
           onCreateVault={() => setIsCreateVaultModalOpen(true)}
@@ -134,9 +152,13 @@ const App = () => {
           isJoinVaultModalOpen={isJoinVaultModalOpen}
           setIsJoinVaultModalOpen={setIsJoinVaultModalOpen}
         />
-      </PlayerProvider>
-    </ServiceProvider>
+      </AudioProvider>
+    </VaultProvider>
   );
+};
+
+const App = () => {
+  return <AppWithProviders />;
 };
 
 export default App;

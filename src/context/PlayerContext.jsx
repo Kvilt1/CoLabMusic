@@ -76,15 +76,44 @@ export const PlayerProvider = ({ children }) => {
                 
                 if (vaultsData) setGroups(vaultsData);
 
-                // Only fetch songs from vaults the user has access to
+                // Fetch songs through vault_songs junction table
                 const accessibleVaultIds = vaultsData?.map(v => v.id) || [];
                 if (accessibleVaultIds.length > 0) {
-                    const { data: songsData } = await supabase
-                        .from('songs')
-                        .select('*')
-                        .in('group_id', accessibleVaultIds)
-                        .order('created_at', { ascending: false });
-                    if (songsData) setAllSongs(songsData);
+                    const { data: vaultSongsData } = await supabase
+                        .from('vault_songs')
+                        .select(`
+                            song_id,
+                            vault_id,
+                            added_at,
+                            added_by,
+                            songs (*)
+                        `)
+                        .in('vault_id', accessibleVaultIds);
+
+                    // Extract unique songs and add vault relationship data
+                    if (vaultSongsData) {
+                        const songsMap = new Map();
+                        vaultSongsData.forEach(vs => {
+                            const song = vs.songs;
+                            if (song && song.processing_status === 'ready') {
+                                // Add vault_id for compatibility with existing code
+                                const songWithVault = {
+                                    ...song,
+                                    vault_id: vs.vault_id,
+                                    added_at: vs.added_at,
+                                    added_by: vs.added_by
+                                };
+                                // Use the most recent occurrence if song is in multiple vaults
+                                if (!songsMap.has(song.id) || new Date(vs.added_at) > new Date(songsMap.get(song.id).added_at)) {
+                                    songsMap.set(song.id, songWithVault);
+                                }
+                            }
+                        });
+                        const songsData = Array.from(songsMap.values()).sort((a, b) =>
+                            new Date(b.created_at) - new Date(a.created_at)
+                        );
+                        setAllSongs(songsData);
+                    }
                 } else {
                     // User has no vaults, show no songs
                     setAllSongs([]);
@@ -126,24 +155,59 @@ export const PlayerProvider = ({ children }) => {
             )
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'songs' },
-                (payload) => {
+                { event: '*', schema: 'public', table: 'vault_songs' },
+                async (payload) => {
                     if (payload.eventType === 'INSERT') {
-                        // Only add song if it belongs to a vault the user has access to
-                        setGroups(currentGroups => {
-                            const accessibleVaultIds = currentGroups.map(g => g.id);
-                            if (accessibleVaultIds.includes(payload.new.group_id)) {
-                                setAllSongs(prev => [payload.new, ...prev]);
-                            }
-                            return currentGroups; // Don't modify groups
-                        });
+                        // Fetch the song details and check if user has access to this vault
+                        const { data: songData } = await supabase
+                            .from('songs')
+                            .select('*')
+                            .eq('id', payload.new.song_id)
+                            .single();
+
+                        if (songData && songData.processing_status === 'ready') {
+                            setGroups(currentGroups => {
+                                const accessibleVaultIds = currentGroups.map(g => g.id);
+                                if (accessibleVaultIds.includes(payload.new.vault_id)) {
+                                    const songWithVault = {
+                                        ...songData,
+                                        vault_id: payload.new.vault_id,
+                                        added_at: payload.new.added_at,
+                                        added_by: payload.new.added_by
+                                    };
+                                    setAllSongs(prev => {
+                                        // Avoid duplicates
+                                        if (prev.some(s => s.id === songData.id)) return prev;
+                                        return [songWithVault, ...prev];
+                                    });
+                                }
+                                return currentGroups;
+                            });
+                        }
                     } else if (payload.eventType === 'DELETE') {
-                        setAllSongs(prev => prev.filter(s => s.id !== payload.old.id));
-                    } else if (payload.eventType === 'UPDATE') {
-                        setAllSongs(prev => prev.map(s => 
-                            s.id === payload.new.id ? { ...s, ...payload.new } : s
+                        // Remove song from UI if it was removed from vault
+                        setAllSongs(prev => prev.filter(s =>
+                            !(s.id === payload.old.song_id && s.vault_id === payload.old.vault_id)
                         ));
                     }
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'songs' },
+                (payload) => {
+                    // Update song metadata
+                    setAllSongs(prev => prev.map(s =>
+                        s.id === payload.new.id ? { ...s, ...payload.new } : s
+                    ));
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: 'DELETE', schema: 'public', table: 'songs' },
+                (payload) => {
+                    // Remove song completely (all instances)
+                    setAllSongs(prev => prev.filter(s => s.id !== payload.old.id));
                 }
             )
             .subscribe();
@@ -163,7 +227,7 @@ export const PlayerProvider = ({ children }) => {
         }
 
         const sound = new Howl({
-            src: [song.url],
+            src: [song.file_url || song.url], // Support both new and legacy field names
             html5: true,
             volume: volume,
             onplay: () => setIsPlaying(true),
@@ -302,7 +366,6 @@ export const PlayerProvider = ({ children }) => {
                 navigator.mediaSession.metadata = new MediaMetadata({
                     title: currentSong.title,
                     artist: currentSong.artist || 'Unknown Artist',
-                    album: currentSong.album || 'Unknown Album',
                     artwork: [
                         { src: currentSong.cover_url || currentSong.cover || '', sizes: '512x512', type: 'image/png' }
                     ]
@@ -328,18 +391,17 @@ export const PlayerProvider = ({ children }) => {
     const getFilteredSongs = useCallback(() => {
         let filtered = currentView === 'all'
             ? allSongs
-            : allSongs.filter(s => s.group_id === currentView);
-        
+            : allSongs.filter(s => s.vault_id === currentView);
+
         // Apply list search filter if query exists
         if (listSearchQuery.trim()) {
             const query = listSearchQuery.toLowerCase();
-            filtered = filtered.filter(song => 
+            filtered = filtered.filter(song =>
                 song.title?.toLowerCase().includes(query) ||
-                song.artist?.toLowerCase().includes(query) ||
-                song.album?.toLowerCase().includes(query)
+                song.artist?.toLowerCase().includes(query)
             );
         }
-        
+
         return filtered;
     }, [currentView, allSongs, listSearchQuery]);
 
@@ -558,12 +620,7 @@ export const PlayerProvider = ({ children }) => {
         const previousGroups = groups;
         setGroups(prev => prev.filter(g => g.id !== vaultId));
 
-        // Transfer songs to "no vault" (set group_id to null)
-        await supabase
-            .from('songs')
-            .update({ group_id: null })
-            .eq('group_id', vaultId);
-
+        // Delete vault (cascades to vault_members and vault_songs)
         const { error } = await supabase
             .from('vaults')
             .delete()
@@ -574,6 +631,10 @@ export const PlayerProvider = ({ children }) => {
             setGroups(previousGroups);
             return { error };
         }
+
+        // Remove songs that were only in this vault from UI
+        setAllSongs(prev => prev.filter(s => s.vault_id !== vaultId));
+
         return { error: null };
     };
 
@@ -662,7 +723,7 @@ export const PlayerProvider = ({ children }) => {
         const { error: joinError } = await supabase.from('vault_members').insert([{
             vault_id: vault.id,
             user_id: currentUser.id,
-            role: 'member',
+            role: 'viewer',
             status: 'active',
             display_name: currentUser.user_metadata?.display_name || currentUser.email?.split('@')[0] || 'User',
             email: currentUser.email
@@ -781,8 +842,8 @@ export const PlayerProvider = ({ children }) => {
                 return { error: { message: 'You are the only member. Delete the vault instead of leaving.' } };
             }
 
-            // Role priority: admin > member > viewer
-            const rolePriority = { admin: 1, member: 2, viewer: 3 };
+            // Role priority: admin > viewer
+            const rolePriority = { admin: 1, viewer: 2 };
 
             // Sort members by:
             // 1. Role priority (highest permission first)
@@ -921,9 +982,10 @@ export const PlayerProvider = ({ children }) => {
 
         // Try to delete from storage (extract path from URL)
         // URL format: https://[project].supabase.co/storage/v1/object/public/music/[path]
-        if (song.url) {
+        const fileUrl = song.file_url || song.url; // Support both new and legacy field names
+        if (fileUrl) {
             try {
-                const urlParts = song.url.split('/storage/v1/object/public/music/');
+                const urlParts = fileUrl.split('/storage/v1/object/public/music/');
                 if (urlParts.length > 1) {
                     const filePath = decodeURIComponent(urlParts[1]);
                     await supabase.storage.from('music').remove([filePath]);

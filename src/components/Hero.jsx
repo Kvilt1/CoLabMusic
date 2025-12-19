@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Music, Play, Shuffle, Search, X, Settings } from 'lucide-react';
 import { usePlayer } from '../context/PlayerContext';
+import { getVaultBgHex, getVaultGradient } from '../utils/vaultColors';
 
 const Hero = () => {
     const { currentView, currentGroup, songs, playSong, toggleShuffle, isShuffled, setListSearchQuery, listSearchQuery, switchView } = usePlayer();
@@ -16,7 +17,8 @@ const Hero = () => {
             return { background: 'linear-gradient(to bottom, #1a1a1a, #0a0a0a)' };
         }
         // Use group color but fallback to orange if not set or invalid, mixed with dark
-        return { background: `linear-gradient(to bottom, ${currentGroup?.bg_hex || '#1a1a1a'}40, #0a0a0a)` };
+        const bgHex = currentGroup ? getVaultBgHex(currentGroup.id) : '#1a1a1a';
+        return { background: `linear-gradient(to bottom, ${bgHex}40, #0a0a0a)` };
     }, [currentView, currentGroup]);
 
     const handlePlayVault = () => {
@@ -43,7 +45,7 @@ const Hero = () => {
                             {currentGroup.cover_url ? (
                                 <img src={currentGroup.cover_url} alt={currentGroup.name} className="w-60 h-60 rounded-2xl shadow-2xl object-cover" />
                             ) : (
-                                <div className={`w-60 h-60 bg-gradient-to-br ${currentGroup.color || 'from-dark-800 to-dark-900'} flex items-center justify-center rounded-2xl shadow-2xl border border-white/5 group-hover:border-orange-500/30 transition-colors`}>
+                                <div className={`w-60 h-60 bg-gradient-to-br ${getVaultGradient(currentGroup.id)} flex items-center justify-center rounded-2xl shadow-2xl border border-white/5 group-hover:border-orange-500/30 transition-colors`}>
                                     <Music className="w-24 h-24 text-white/20 drop-shadow-md group-hover:text-orange-500/40 transition-colors" />
                                 </div>
                             )}

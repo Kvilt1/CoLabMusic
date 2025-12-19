@@ -197,8 +197,9 @@ const VaultSettings = () => {
         if (!error) {
             // Update locally on success
             setMembers(prev => prev.map(m => m.id === memberId ? { ...m, role: newRole } : m));
+            toast.success(`Role updated to ${newRole.charAt(0).toUpperCase() + newRole.slice(1)}`);
         } else {
-            setError('Failed to update role');
+            toast.error(error.message || 'Failed to update role');
         }
         setActionLoading(null);
         setSelectedMember(null);
@@ -210,8 +211,9 @@ const VaultSettings = () => {
         if (!error) {
             // Remove locally on success
             setMembers(prev => prev.filter(m => m.id !== memberId));
+            toast.success('Member removed from vault');
         } else {
-            setError('Failed to remove member');
+            toast.error('Failed to remove member');
         }
         setActionLoading(null);
         setShowKickConfirm(null);
@@ -223,7 +225,7 @@ const VaultSettings = () => {
 
         setActionLoading(memberId);
         const { error } = await transferOwnership(vaultId, member.user_id);
-        
+
         if (!error) {
             // Update roles locally on success
             setMembers(prev => prev.map(m => {
@@ -231,8 +233,9 @@ const VaultSettings = () => {
                 if (m.id === memberId) return { ...m, role: 'owner' };
                 return m;
             }));
+            toast.success(`Ownership transferred to ${member.display_name || member.email}`);
         } else {
-            setError('Failed to transfer ownership');
+            toast.error('Failed to transfer ownership');
         }
         setActionLoading(null);
         setShowTransferConfirm(null);
@@ -516,56 +519,63 @@ const VaultSettings = () => {
                                                     </div>
                                                 </div>
 
-                                                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${roleConfig.bgColor} ${roleConfig.color}`}>
-                                                    <RoleIcon className="w-3 h-3" />
-                                                    {roleConfig.label}
-                                                </div>
-
-                                                {isOwner && !isSelf && member.role !== 'owner' && (
-                                                    <div className="relative">
-                                                        <button 
-                                                            onClick={() => setSelectedMember(selectedMember === member.id ? null : member.id)}
-                                                            className="p-2 text-gray-500 hover:text-white hover:bg-[#333] rounded-full transition"
+                                                {/* Role selector or badge */}
+                                                {isOwner && !isSelf && member.role !== 'owner' ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <select
+                                                            value={member.role}
+                                                            onChange={(e) => handleRoleChange(member.id, e.target.value)}
+                                                            disabled={actionLoading === member.id}
+                                                            className={`bg-[#222] border border-[#333] rounded-lg px-3 py-1.5 text-xs font-medium ${roleConfig.color} hover:border-[#444] focus:outline-none focus:border-orange-500 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
                                                         >
-                                                            <MoreVertical className="w-4 h-4" />
-                                                        </button>
+                                                            <option value="admin" className="bg-[#222] text-purple-400">Admin</option>
+                                                            <option value="member" className="bg-[#222] text-emerald-400">Member</option>
+                                                            <option value="viewer" className="bg-[#222] text-gray-400">Viewer</option>
+                                                        </select>
 
-                                                        {selectedMember === member.id && (
-                                                            <div className="absolute right-0 top-full mt-2 w-48 bg-[#222] border border-[#333] rounded-xl shadow-xl z-50 overflow-hidden py-1">
-                                                                <div className="px-3 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Change Role</div>
-                                                                {['admin', 'member', 'viewer'].filter(r => r !== member.role).map(role => (
-                                                                    <button
-                                                                        key={role}
-                                                                        onClick={() => handleRoleChange(member.id, role)}
-                                                                        className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-[#333] hover:text-white flex items-center gap-2"
-                                                                    >
-                                                                        <div className={`w-2 h-2 rounded-full ${ROLES[role].bgColor.replace('/10', '')}`}></div>
-                                                                        {ROLES[role].label}
-                                                                    </button>
-                                                                ))}
-                                                                <div className="h-px bg-[#333] my-1"></div>
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setSelectedMember(null);
-                                                                        setShowTransferConfirm(member.id);
-                                                                    }}
-                                                                    className="w-full text-left px-4 py-2 text-sm text-amber-500 hover:bg-amber-500/10 flex items-center gap-2"
-                                                                >
-                                                                    <Crown className="w-3 h-3" />
-                                                                    Transfer Owner
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setSelectedMember(null);
-                                                                        setShowKickConfirm(member.id);
-                                                                    }}
-                                                                    className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2"
-                                                                >
-                                                                    <UserMinus className="w-3 h-3" />
-                                                                    Remove
-                                                                </button>
-                                                            </div>
+                                                        {actionLoading === member.id && (
+                                                            <Loader2 className="w-4 h-4 text-orange-500 animate-spin" />
                                                         )}
+
+                                                        {/* Actions menu for Transfer/Remove */}
+                                                        <div className="relative">
+                                                            <button
+                                                                onClick={() => setSelectedMember(selectedMember === member.id ? null : member.id)}
+                                                                className="p-2 text-gray-500 hover:text-white hover:bg-[#333] rounded-full transition"
+                                                            >
+                                                                <MoreVertical className="w-4 h-4" />
+                                                            </button>
+
+                                                            {selectedMember === member.id && (
+                                                                <div className="absolute right-0 top-full mt-2 w-48 bg-[#222] border border-[#333] rounded-xl shadow-xl z-50 overflow-hidden py-1">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setSelectedMember(null);
+                                                                            setShowTransferConfirm(member.id);
+                                                                        }}
+                                                                        className="w-full text-left px-4 py-2 text-sm text-amber-500 hover:bg-amber-500/10 flex items-center gap-2"
+                                                                    >
+                                                                        <Crown className="w-3 h-3" />
+                                                                        Transfer Owner
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setSelectedMember(null);
+                                                                            setShowKickConfirm(member.id);
+                                                                        }}
+                                                                        className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2"
+                                                                    >
+                                                                        <UserMinus className="w-3 h-3" />
+                                                                        Remove
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${roleConfig.bgColor} ${roleConfig.color}`}>
+                                                        <RoleIcon className="w-3 h-3" />
+                                                        {roleConfig.label}
                                                     </div>
                                                 )}
                                             </div>

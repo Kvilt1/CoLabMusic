@@ -11,6 +11,25 @@ import { supabase } from './supabaseClient';
 import CreateVaultModal from './components/CreateVaultModal';
 import JoinVaultModal from './components/JoinVaultModal';
 
+// Service imports
+import { ServiceProvider } from './services';
+import { SupabaseAuthService } from './services/auth/SupabaseAuthService';
+import { SupabaseVaultService } from './services/vault/SupabaseVaultService';
+import { SupabaseVaultMemberService } from './services/vaultMember/SupabaseVaultMemberService';
+import { SupabaseSongService } from './services/song/SupabaseSongService';
+import { SupabaseStorageService } from './services/storage/SupabaseStorageService';
+import { SupabaseRealtimeService } from './services/realtime/SupabaseRealtimeService';
+
+// Create production service instances
+const productionServices = {
+  auth: new SupabaseAuthService(supabase),
+  vault: new SupabaseVaultService(supabase),
+  vaultMember: new SupabaseVaultMemberService(supabase),
+  song: new SupabaseSongService(supabase),
+  storage: new SupabaseStorageService(supabase),
+  realtime: new SupabaseRealtimeService(supabase)
+};
+
 const AppContent = ({ 
   onUpload, 
   onCreateVault, 
@@ -102,19 +121,21 @@ const App = () => {
   }
 
   return (
-    <PlayerProvider>
-      <AppContent 
-        onUpload={() => setIsUploadModalOpen(true)}
-        onCreateVault={() => setIsCreateVaultModalOpen(true)}
-        onJoinVault={() => setIsJoinVaultModalOpen(true)}
-        isUploadModalOpen={isUploadModalOpen}
-        setIsUploadModalOpen={setIsUploadModalOpen}
-        isCreateVaultModalOpen={isCreateVaultModalOpen}
-        setIsCreateVaultModalOpen={setIsCreateVaultModalOpen}
-        isJoinVaultModalOpen={isJoinVaultModalOpen}
-        setIsJoinVaultModalOpen={setIsJoinVaultModalOpen}
-      />
-    </PlayerProvider>
+    <ServiceProvider services={productionServices}>
+      <PlayerProvider>
+        <AppContent
+          onUpload={() => setIsUploadModalOpen(true)}
+          onCreateVault={() => setIsCreateVaultModalOpen(true)}
+          onJoinVault={() => setIsJoinVaultModalOpen(true)}
+          isUploadModalOpen={isUploadModalOpen}
+          setIsUploadModalOpen={setIsUploadModalOpen}
+          isCreateVaultModalOpen={isCreateVaultModalOpen}
+          setIsCreateVaultModalOpen={setIsCreateVaultModalOpen}
+          isJoinVaultModalOpen={isJoinVaultModalOpen}
+          setIsJoinVaultModalOpen={setIsJoinVaultModalOpen}
+        />
+      </PlayerProvider>
+    </ServiceProvider>
   );
 };
 

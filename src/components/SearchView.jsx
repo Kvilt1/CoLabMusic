@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, X, Music, Clock, Play, BarChart2 } from 'lucide-react';
 import { usePlayer } from '../context/PlayerContext';
 import clsx from 'clsx';
+import { getVaultGradient } from '../utils/vaultColors';
 
 const SearchView = () => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -20,12 +21,11 @@ const SearchView = () => {
         }
 
         const query = searchQuery.toLowerCase().trim();
-        
+
         // Search all songs the user has access to (already loaded in context)
-        return allSongs.filter(song => 
+        return allSongs.filter(song =>
             song.title?.toLowerCase().includes(query) ||
-            song.artist?.toLowerCase().includes(query) ||
-            song.album?.toLowerCase().includes(query)
+            song.artist?.toLowerCase().includes(query)
         );
     }, [searchQuery, allSongs]);
 
@@ -75,7 +75,7 @@ const SearchView = () => {
                             <Search className="w-10 h-10 opacity-40 text-gray-500" />
                         </div>
                         <h2 className="text-3xl font-bold mb-3 text-white">Search CoLab</h2>
-                        <p className="text-base text-gray-500 max-w-md text-center">Find your favorite tracks by title, artist, or album across all your vaults.</p>
+                        <p className="text-base text-gray-500 max-w-md text-center">Find your favorite tracks by title or artist across all your vaults.</p>
                     </div>
                 ) : searchResults.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-[50vh] text-gray-400 animate-fade-in">
@@ -92,10 +92,9 @@ const SearchView = () => {
                         </h2>
 
                         {/* Results Table Header */}
-                        <div className="grid grid-cols-[40px_4fr_2fr_2fr_40px] gap-4 text-gray-500 text-xs border-b border-white/5 pb-3 mb-2 px-4 uppercase font-bold tracking-wider">
+                        <div className="grid grid-cols-[40px_4fr_2fr_40px] gap-4 text-gray-500 text-xs border-b border-white/5 pb-3 mb-2 px-4 uppercase font-bold tracking-wider">
                             <div className="text-center">#</div>
                             <div>Title</div>
-                            <div>Album</div>
                             <div>Vault</div>
                             <div className="text-right"><Clock className="w-3.5 h-3.5 ml-auto" /></div>
                         </div>
@@ -103,17 +102,25 @@ const SearchView = () => {
                         {/* Results List */}
                         <div className="space-y-1">
                             {searchResults.map((song, index) => {
-                                const group = groups.find(g => g.id === song.group_id);
+                                const group = groups.find(g => g.id === song.vault_id);
                                 const isCurrent = currentSong?.id === song.id;
-                                
+
+                                // Format duration from seconds to M:SS
+                                const formatDuration = (seconds) => {
+                                    if (!seconds) return '0:00';
+                                    const mins = Math.floor(seconds / 60);
+                                    const secs = seconds % 60;
+                                    return `${mins}:${secs.toString().padStart(2, '0')}`;
+                                };
+
                                 return (
                                     <div
                                         key={song.id}
                                         onClick={() => handleSongClick(song)}
                                         className={clsx(
-                                            "group grid grid-cols-[40px_4fr_2fr_2fr_40px] gap-4 px-4 py-3 rounded-xl transition items-center cursor-pointer border border-transparent",
-                                            isCurrent 
-                                                ? "bg-white/5 border-orange-500/20 shadow-lg" 
+                                            "group grid grid-cols-[40px_4fr_2fr_40px] gap-4 px-4 py-3 rounded-xl transition items-center cursor-pointer border border-transparent",
+                                            isCurrent
+                                                ? "bg-white/5 border-orange-500/20 shadow-lg"
                                                 : "hover:bg-white/5 hover:border-white/5"
                                         )}
                                     >
@@ -167,16 +174,11 @@ const SearchView = () => {
                                             </div>
                                         </div>
 
-                                        {/* Album */}
-                                        <div className="text-sm text-gray-400 truncate group-hover:text-white transition">
-                                            {song.album && song.album !== 'Unknown Album' ? song.album : <span className="opacity-30">-</span>}
-                                        </div>
-
                                         {/* Vault Name */}
                                         <div className="text-sm text-gray-400">
                                             {group ? (
                                                 <span className="truncate group-hover:text-white transition flex items-center gap-2">
-                                                    <span className={`w-2 h-2 rounded-full inline-block bg-gradient-to-br ${group.color || 'from-gray-500 to-gray-600'}`}></span>
+                                                    <span className={`w-2 h-2 rounded-full inline-block bg-gradient-to-br ${getVaultGradient(group.id)}`}></span>
                                                     {group.name}
                                                 </span>
                                             ) : (
@@ -189,7 +191,7 @@ const SearchView = () => {
 
                                         {/* Duration */}
                                         <div className="text-sm text-gray-500 font-mono text-right group-hover:text-white transition">
-                                            {song.duration}
+                                            {formatDuration(song.duration_seconds || song.duration)}
                                         </div>
                                     </div>
                                 );

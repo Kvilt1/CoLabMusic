@@ -13,8 +13,8 @@ const SongMenu = ({ song }) => {
 
     // Check if user can delete this song (owner or admin of the vault)
     const canDelete = () => {
-        if (!currentUser || !song.group_id) return false;
-        const vault = groups.find(g => g.id === song.group_id);
+        if (!currentUser || !song.vault_id) return false;
+        const vault = groups.find(g => g.id === song.vault_id);
         if (!vault) return false;
         // Owner of the vault can always delete
         if (vault.owner_id === currentUser.id) return true;
@@ -45,9 +45,9 @@ const SongMenu = ({ song }) => {
 
     const handleDownload = (e) => {
         e.stopPropagation();
-        if (song.url) {
+        if (song.file_url) {
             const link = document.createElement('a');
-            link.href = song.url;
+            link.href = song.file_url;
             link.download = `${song.artist} - ${song.title}.m4a`; // Suggest filename
             document.body.appendChild(link);
             link.click();

@@ -203,17 +203,23 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
                         .getPublicUrl(fileName);
 
                     // 4. Save Metadata to Database
+                    // Parse duration from "M:SS" to seconds
+                    const durationParts = duration.split(':');
+                    const durationSeconds = parseInt(durationParts[0]) * 60 + parseInt(durationParts[1] || 0);
+
                     const { data: songData, error: dbError } = await supabase
                         .from('songs')
                         .insert([
                             {
                                 title: trackTitle,
                                 artist: artists.filter(a => a.trim() !== '').join(', '),
-                                url: audioUrl,
+                                file_url: audioUrl,
                                 cover_url: coverUrl,
-                                group_id: selectedVault,
-                                duration: duration, // Add calculated duration
+                                original_filename: audioFile.name,
+                                file_size_bytes: audioFile.size,
+                                duration_seconds: durationSeconds,
                                 uploaded_by: session?.user?.id,
+                                processing_status: 'ready' // Mark as ready for now (can be 'pending' if processing is needed)
                             }
                         ])
                         .select();
@@ -223,23 +229,42 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
                         setErrorMessage('File uploaded but database save failed.');
                         setUploadStatus('error');
                         toast.error('File uploaded but database save failed.');
-                    } else {
-                        setUploadStatus('success');
-                        toast.success('Upload complete!');
-                        // Notify parent about the new song for immediate UI update
-                        if (onSongUploaded && songData?.[0]) {
-                            onSongUploaded(songData[0]);
+                    } else if (songData?.[0]) {
+                        // 5. Link song to vault via vault_songs junction table
+                        const { error: vaultSongError } = await supabase
+                            .from('vault_songs')
+                            .insert([{
+                                vault_id: selectedVault,
+                                song_id: songData[0].id,
+                                added_by: session?.user?.id
+                            }]);
+
+                        if (vaultSongError) {
+                            console.error('Vault Song Link Error:', vaultSongError);
+                            // Rollback: Delete the song we just created
+                            await supabase.from('songs').delete().eq('id', songData[0].id);
+                            setErrorMessage('Failed to link song to vault.');
+                            setUploadStatus('error');
+                            toast.error('Failed to link song to vault.');
+                        } else {
+                            setUploadStatus('success');
+                            toast.success('Upload complete!');
+                            // Notify parent about the new song for immediate UI update
+                            if (onSongUploaded) {
+                                // Add vault_id for compatibility
+                                onSongUploaded({ ...songData[0], vault_id: selectedVault });
+                            }
+                            setTimeout(() => {
+                                onClose();
+                                // Reset state
+                                setAudioFile(null);
+                                setUploadStatus('idle');
+                                setTrackTitle('');
+                                setArtists(['']);
+                                setCoverFile(null);
+                                setCoverPreview(null);
+                            }, 1500);
                         }
-                        setTimeout(() => {
-                            onClose();
-                            // Reset state
-                            setAudioFile(null);
-                            setUploadStatus('idle');
-                            setTrackTitle('');
-                            setArtists(['']);
-                            setCoverFile(null);
-                            setCoverPreview(null);
-                        }, 1500);
                     }
                 },
             });

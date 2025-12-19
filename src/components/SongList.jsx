@@ -45,10 +45,9 @@ const SongList = ({ onUpload }) => {
     return (
         <div className="flex flex-col pb-40 px-8">
             {/* Table Header */}
-            <div className="sticky top-[72px] bg-dark-900 z-10 grid grid-cols-[40px_4fr_2fr_2fr_1fr_40px] gap-4 text-gray-500 text-xs font-bold tracking-wider uppercase border-b border-white/5 pb-3 mb-2 px-4 transition-colors">
+            <div className="sticky top-[72px] bg-dark-900 z-10 grid grid-cols-[40px_4fr_2fr_1fr_40px] gap-4 text-gray-500 text-xs font-bold tracking-wider uppercase border-b border-white/5 pb-3 mb-2 px-4 transition-colors">
                 <div className="text-center">#</div>
                 <div className="flex items-center gap-1">Title</div>
-                <div className="flex items-center gap-1">Album</div>
                 <div className="flex items-center gap-1"><Calendar className="w-3 h-3" /> Date</div>
                 <div className="flex items-center gap-1">Vault</div>
                 <div className="flex justify-end"><Clock className="w-3 h-3" /></div>
@@ -89,17 +88,25 @@ const SongList = ({ onUpload }) => {
             ) : (
                 <div className="space-y-1">
                     {songs.map((song, index) => {
-                        const group = groups.find(g => g.id === song.group_id);
+                        const group = groups.find(g => g.id === song.vault_id);
                         const isCurrent = currentSong?.id === song.id;
+
+                        // Format duration from seconds to M:SS
+                        const formatDuration = (seconds) => {
+                            if (!seconds) return '0:00';
+                            const mins = Math.floor(seconds / 60);
+                            const secs = seconds % 60;
+                            return `${mins}:${secs.toString().padStart(2, '0')}`;
+                        };
 
                         return (
                             <div
                                 key={song.id}
                                 onClick={() => playSong(song)}
                                 className={clsx(
-                                    "group grid grid-cols-[40px_4fr_2fr_2fr_1fr_40px] gap-4 px-4 py-3 rounded-xl transition items-center text-sm cursor-pointer relative border border-transparent",
-                                    isCurrent 
-                                        ? "bg-white/5 border-orange-500/20 shadow-[0_0_15px_rgba(0,0,0,0.2)]" 
+                                    "group grid grid-cols-[40px_4fr_2fr_1fr_40px] gap-4 px-4 py-3 rounded-xl transition items-center text-sm cursor-pointer relative border border-transparent",
+                                    isCurrent
+                                        ? "bg-white/5 border-orange-500/20 shadow-[0_0_15px_rgba(0,0,0,0.2)]"
                                         : "hover:bg-white/5 hover:border-white/5"
                                 )}
                             >
@@ -138,9 +145,6 @@ const SongList = ({ onUpload }) => {
                                     </div>
                                 </div>
 
-                                {/* Album */}
-                                <div className="truncate text-gray-400 group-hover:text-white transition">{song.album || <span className="text-gray-600">-</span>}</div>
-
                                 {/* Date */}
                                 <div 
                                     className="truncate text-gray-400 group-hover:text-white transition cursor-default"
@@ -161,7 +165,7 @@ const SongList = ({ onUpload }) => {
 
                                 {/* Duration / Menu */}
                                 <div className="text-right font-mono text-xs text-gray-500 group-hover:hidden">
-                                    {song.duration}
+                                    {formatDuration(song.duration_seconds || song.duration)}
                                 </div>
                                 <div className="hidden group-hover:flex justify-end">
                                     <SongMenu song={song} />

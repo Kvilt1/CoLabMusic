@@ -1,13 +1,15 @@
 
 import React, { createContext, useState, useEffect, useRef, useContext, useCallback } from 'react';
 import { Howl, Howler } from 'howler';
-import { supabase } from '../supabaseClient';
+import { useServices } from '../services';
 
 const PlayerContext = createContext();
 
 export const usePlayer = () => useContext(PlayerContext);
 
 export const PlayerProvider = ({ children }) => {
+    // Get services from context
+    const { auth, vault, vaultMember, song, storage, realtime } = useServices();
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentSong, setCurrentSong] = useState(null);
     const [volume, setVolume] = useState(0.5);
@@ -55,69 +57,24 @@ export const PlayerProvider = ({ children }) => {
     useEffect(() => {
         const fetchData = async () => {
             // Get current user
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: user } = await auth.getUser();
             setCurrentUser(user);
 
             if (user) {
-                // Fetch vaults where user is a member OR owner
-                const { data: memberVaults } = await supabase
-                    .from('vault_members')
-                    .select('vault_id')
-                    .eq('user_id', user.id);
-                
-                const memberVaultIds = memberVaults?.map(m => m.vault_id) || [];
-                
-                // Get all vaults where user is member or owner
-                const { data: vaultsData } = await supabase
-                    .from('vaults')
-                    .select('*')
-                    .or(`owner_id.eq.${user.id},id.in.(${memberVaultIds.length > 0 ? memberVaultIds.join(',') : '00000000-0000-0000-0000-000000000000'})`)
-                    .order('created_at', { ascending: true });
-                
+                // Fetch accessible vaults (owned + member)
+                const { data: vaultsData } = await vault.getAccessibleVaults(user.id);
                 if (vaultsData) setGroups(vaultsData);
 
-                // Fetch songs through vault_songs junction table
+                // Fetch songs for accessible vaults
                 const accessibleVaultIds = vaultsData?.map(v => v.id) || [];
-                if (accessibleVaultIds.length > 0) {
-                    const { data: vaultSongsData } = await supabase
-                        .from('vault_songs')
-                        .select(`
-                            song_id,
-                            vault_id,
-                            added_at,
-                            added_by,
-                            songs (*)
-                        `)
-                        .in('vault_id', accessibleVaultIds);
+                const { data: songsData } = await song.getSongsForVaults(accessibleVaultIds);
 
-                    // Extract unique songs and add vault relationship data
-                    if (vaultSongsData) {
-                        const songsMap = new Map();
-                        vaultSongsData.forEach(vs => {
-                            const song = vs.songs;
-                            if (song && song.processing_status === 'ready') {
-                                // Add vault_id for compatibility with existing code
-                                const songWithVault = {
-                                    ...song,
-                                    vault_id: vs.vault_id,
-                                    added_at: vs.added_at,
-                                    added_by: vs.added_by
-                                };
-                                // Use the most recent occurrence if song is in multiple vaults
-                                if (!songsMap.has(song.id) || new Date(vs.added_at) > new Date(songsMap.get(song.id).added_at)) {
-                                    songsMap.set(song.id, songWithVault);
-                                }
-                            }
-                        });
-                        const songsData = Array.from(songsMap.values()).sort((a, b) =>
-                            new Date(b.created_at) - new Date(a.created_at)
-                        );
-                        setAllSongs(songsData);
-                    }
-                } else {
-                    // User has no vaults, show no songs
-                    setAllSongs([]);
-                }
+                // Filter only ready songs and sort
+                const readySongs = (songsData || [])
+                    .filter(s => s.processing_status === 'ready')
+                    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+                setAllSongs(readySongs);
             } else {
                 // Not logged in, show nothing
                 setGroups([]);
@@ -128,95 +85,66 @@ export const PlayerProvider = ({ children }) => {
         fetchData();
 
         // Listen for auth state changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = auth.onAuthStateChange((_event, session) => {
             setCurrentUser(session?.user || null);
             fetchData(); // Refetch data when auth changes
         });
 
-        // Realtime Subscription
-        const channel = supabase.channel('schema-db-changes')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'vaults' },
-                (payload) => {
-                    if (payload.eventType === 'INSERT') {
-                        setGroups(prev => {
-                            if (prev.some(g => g.id === payload.new.id)) return prev;
-                            return [...prev, payload.new];
-                        });
-                    } else if (payload.eventType === 'UPDATE') {
-                        setGroups(prev => prev.map(g => 
-                            g.id === payload.new.id ? { ...g, ...payload.new } : g
-                        ));
-                    } else if (payload.eventType === 'DELETE') {
-                        setGroups(prev => prev.filter(g => g.id !== payload.old.id));
-                    }
-                }
-            )
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'vault_songs' },
-                async (payload) => {
-                    if (payload.eventType === 'INSERT') {
-                        // Fetch the song details and check if user has access to this vault
-                        const { data: songData } = await supabase
-                            .from('songs')
-                            .select('*')
-                            .eq('id', payload.new.song_id)
-                            .single();
+        // Realtime Subscriptions using service
+        const vaultSub = realtime.subscribeToVaults((payload) => {
+            if (payload.eventType === 'INSERT') {
+                setGroups(prev => {
+                    if (prev.some(g => g.id === payload.new.id)) return prev;
+                    return [...prev, payload.new];
+                });
+            } else if (payload.eventType === 'UPDATE') {
+                setGroups(prev => prev.map(g =>
+                    g.id === payload.new.id ? { ...g, ...payload.new } : g
+                ));
+            } else if (payload.eventType === 'DELETE') {
+                setGroups(prev => prev.filter(g => g.id !== payload.old.id));
+            }
+        });
 
-                        if (songData && songData.processing_status === 'ready') {
-                            setGroups(currentGroups => {
-                                const accessibleVaultIds = currentGroups.map(g => g.id);
-                                if (accessibleVaultIds.includes(payload.new.vault_id)) {
-                                    const songWithVault = {
-                                        ...songData,
-                                        vault_id: payload.new.vault_id,
-                                        added_at: payload.new.added_at,
-                                        added_by: payload.new.added_by
-                                    };
-                                    setAllSongs(prev => {
-                                        // Avoid duplicates
-                                        if (prev.some(s => s.id === songData.id)) return prev;
-                                        return [songWithVault, ...prev];
-                                    });
-                                }
-                                return currentGroups;
+        const songSub = realtime.subscribeToSongs((payload) => {
+            if (payload.eventType === 'UPDATE') {
+                setAllSongs(prev => prev.map(s =>
+                    s.id === payload.new.id ? { ...s, ...payload.new } : s
+                ));
+            } else if (payload.eventType === 'DELETE') {
+                setAllSongs(prev => prev.filter(s => s.id !== payload.old.id));
+            }
+        });
+
+        const vaultSongSub = realtime.subscribeToVaultSongs(async (payload) => {
+            if (payload.eventType === 'INSERT') {
+                const { data: songData } = await song.getSongById(payload.new.song_id);
+                if (songData && songData.processing_status === 'ready') {
+                    setGroups(currentGroups => {
+                        const accessibleVaultIds = currentGroups.map(g => g.id);
+                        if (accessibleVaultIds.includes(payload.new.vault_id)) {
+                            setAllSongs(prev => {
+                                if (prev.some(s => s.id === songData.id)) return prev;
+                                return [songData, ...prev];
                             });
                         }
-                    } else if (payload.eventType === 'DELETE') {
-                        // Remove song from UI if it was removed from vault
-                        setAllSongs(prev => prev.filter(s =>
-                            !(s.id === payload.old.song_id && s.vault_id === payload.old.vault_id)
-                        ));
-                    }
+                        return currentGroups;
+                    });
                 }
-            )
-            .on(
-                'postgres_changes',
-                { event: 'UPDATE', schema: 'public', table: 'songs' },
-                (payload) => {
-                    // Update song metadata
-                    setAllSongs(prev => prev.map(s =>
-                        s.id === payload.new.id ? { ...s, ...payload.new } : s
-                    ));
-                }
-            )
-            .on(
-                'postgres_changes',
-                { event: 'DELETE', schema: 'public', table: 'songs' },
-                (payload) => {
-                    // Remove song completely (all instances)
-                    setAllSongs(prev => prev.filter(s => s.id !== payload.old.id));
-                }
-            )
-            .subscribe();
+            } else if (payload.eventType === 'DELETE') {
+                setAllSongs(prev => prev.filter(s =>
+                    !(s.id === payload.old.song_id && s.vault_id === payload.old.vault_id)
+                ));
+            }
+        });
 
         return () => {
-            supabase.removeChannel(channel);
+            vaultSub.unsubscribe();
+            songSub.unsubscribe();
+            vaultSongSub.unsubscribe();
             subscription?.unsubscribe();
         };
-    }, []);
+    }, [auth, vault, song, realtime]);
 
     // Circular dependency breaker
     const nextSongRef = useRef(null);
@@ -548,30 +476,26 @@ export const PlayerProvider = ({ children }) => {
         setGroups(prev => [...prev, optimisticVault]);
 
         // Create vault with owner_id
-        const { data, error } = await supabase.from('vaults').insert([{
+        const { data: realVault, error } = await vault.createVault({
             name: name,
             owner_id: currentUser.id
-        }]).select();
+        });
 
         if (error) {
             console.error('Error creating vault:', error);
             setGroups(prev => prev.filter(g => g.id !== optimisticVault.id));
             return { error };
         }
-        
-        if (data && data[0]) {
-            const realVault = data[0];
+
+        if (realVault) {
             setGroups(prev => prev.map(g => g.id === optimisticVault.id ? realVault : g));
 
             // Add creator as owner in vault_members
-            const { error: memberError } = await supabase.from('vault_members').insert([{
-                vault_id: realVault.id,
-                user_id: currentUser.id,
-                role: 'owner',
-                status: 'active',
-                display_name: currentUser.user_metadata?.display_name || currentUser.email?.split('@')[0] || 'User',
-                email: currentUser.email
-            }]);
+            const { error: memberError } = await vaultMember.addMember(
+                realVault.id,
+                currentUser.id,
+                'owner'
+            );
 
             if (memberError) {
                 console.error('Error adding owner to vault_members:', memberError);
@@ -588,16 +512,15 @@ export const PlayerProvider = ({ children }) => {
         // Optimistic update
         setGroups(prev => prev.map(g => g.id === vaultId ? { ...g, ...updates } : g));
 
-        const { error } = await supabase
-            .from('vaults')
-            .update(updates)
-            .eq('id', vaultId);
+        const { error } = await vault.updateVault(vaultId, updates);
 
         if (error) {
             console.error('Error updating vault:', error);
             // Refetch to rollback
-            const { data: vaultsData } = await supabase.from('vaults').select('*').order('created_at', { ascending: true });
-            if (vaultsData) setGroups(vaultsData);
+            if (currentUser) {
+                const { data: vaultsData } = await vault.getAccessibleVaults(currentUser.id);
+                if (vaultsData) setGroups(vaultsData);
+            }
             return { error };
         }
         return { error: null };
@@ -610,10 +533,7 @@ export const PlayerProvider = ({ children }) => {
         setGroups(prev => prev.filter(g => g.id !== vaultId));
 
         // Delete vault (cascades to vault_members and vault_songs)
-        const { error } = await supabase
-            .from('vaults')
-            .delete()
-            .eq('id', vaultId);
+        const { error } = await vault.deleteVault(vaultId);
 
         if (error) {
             console.error('Error deleting vault:', error);
@@ -629,12 +549,8 @@ export const PlayerProvider = ({ children }) => {
 
     // Get Vault Members with user info
     const getVaultMembers = async (vaultId) => {
-        const { data, error } = await supabase
-            .from('vault_members')
-            .select('*')
-            .eq('vault_id', vaultId)
-            .order('joined_at', { ascending: true });
-        
+        const { data, error } = await vaultMember.getVaultMembers(vaultId);
+
         if (error) {
             console.error('Error fetching members:', error);
             return [];
@@ -644,18 +560,7 @@ export const PlayerProvider = ({ children }) => {
 
     // Regenerate Invite Code
     const regenerateInviteCode = async (vaultId) => {
-        // Generate a new 6-character code
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-        let newCode = '';
-        for (let i = 0; i < 6; i++) {
-            newCode += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-
-        const { data, error } = await supabase
-            .from('vaults')
-            .update({ invite_code: newCode })
-            .eq('id', vaultId)
-            .select();
+        const { data: newCode, error } = await vault.regenerateInviteCode(vaultId);
 
         if (error) {
             console.error('Error regenerating invite code:', error);
@@ -663,13 +568,13 @@ export const PlayerProvider = ({ children }) => {
         }
 
         // Update local state
-        if (data && data[0]) {
-            setGroups(prev => prev.map(g => 
-                g.id === vaultId ? { ...g, invite_code: data[0].invite_code } : g
+        if (newCode) {
+            setGroups(prev => prev.map(g =>
+                g.id === vaultId ? { ...g, invite_code: newCode } : g
             ));
         }
 
-        return { code: data?.[0]?.invite_code, error: null };
+        return { code: newCode, error: null };
     };
 
     // Join Vault by Invite Code
@@ -680,64 +585,28 @@ export const PlayerProvider = ({ children }) => {
 
         const normalizedCode = code.toUpperCase().trim();
 
-        // Find vault with this invite code using database function (bypasses RLS)
-        const { data: vaultData, error: findError } = await supabase
-            .rpc('get_vault_by_invite_code', { p_invite_code: normalizedCode });
+        // Join vault using service
+        const { data: vaultData, error } = await vault.joinVaultByCode(normalizedCode, currentUser.id);
 
-        const vault = vaultData?.[0] || null;
-
-        if (findError || !vault) {
-            return { vault: null, error: { message: 'Invalid invite code. Please check and try again.' } };
-        }
-
-        // Check if already a member
-        const { data: existingMember } = await supabase
-            .from('vault_members')
-            .select('id')
-            .eq('vault_id', vault.id)
-            .eq('user_id', currentUser.id)
-            .single();
-
-        if (existingMember) {
-            return { vault, error: { message: 'You already have access to this vault.' } };
-        }
-
-        // Also check if user is the owner
-        if (vault.owner_id === currentUser.id) {
-            return { vault, error: { message: 'You already have access to this vault.' } };
-        }
-
-        // Add user to vault_members
-        const { error: joinError } = await supabase.from('vault_members').insert([{
-            vault_id: vault.id,
-            user_id: currentUser.id,
-            role: 'viewer',
-            status: 'active',
-            display_name: currentUser.user_metadata?.display_name || currentUser.email?.split('@')[0] || 'User',
-            email: currentUser.email
-        }]);
-
-        if (joinError) {
-            console.error('Error joining vault:', joinError);
-            return { vault: null, error: { message: 'Failed to join vault. Please try again.' } };
+        if (error) {
+            return { vault: null, error: { message: error.message || 'Invalid invite code. Please check and try again.' } };
         }
 
         // Add to local groups
-        setGroups(prev => {
-            if (prev.some(g => g.id === vault.id)) return prev;
-            return [...prev, vault];
-        });
+        if (vaultData) {
+            setGroups(prev => {
+                if (prev.some(g => g.id === vaultData.id)) return prev;
+                return [...prev, vaultData];
+            });
+        }
 
-        return { vault, error: null };
+        return { vault: vaultData, error: null };
     };
 
     // Update Member Role
     const updateMemberRole = async (memberId, role) => {
-        const { error } = await supabase
-            .from('vault_members')
-            .update({ role })
-            .eq('id', memberId);
-        
+        const { error } = await vaultMember.updateMemberRole(memberId, role);
+
         if (error) {
             console.error('Error updating member role:', error);
             return { error };
@@ -747,11 +616,8 @@ export const PlayerProvider = ({ children }) => {
 
     // Remove Member
     const removeMember = async (memberId) => {
-        const { error } = await supabase
-            .from('vault_members')
-            .delete()
-            .eq('id', memberId);
-        
+        const { error } = await vaultMember.removeMember(memberId);
+
         if (error) {
             console.error('Error removing member:', error);
             return { error };
@@ -765,45 +631,15 @@ export const PlayerProvider = ({ children }) => {
             return { error: { message: 'Must be logged in to transfer ownership' } };
         }
 
-        // Update old owner's role to 'admin'
-        const { error: oldOwnerError } = await supabase
-            .from('vault_members')
-            .update({ role: 'admin' })
-            .eq('vault_id', vaultId)
-            .eq('user_id', currentUser.id);
+        const { error } = await vault.transferOwnership(vaultId, newOwnerUserId);
 
-        if (oldOwnerError) {
-            console.error('Error updating old owner role:', oldOwnerError);
-            return { error: oldOwnerError };
-        }
-
-        // Update the new owner's role to 'owner'
-        const { error: roleError } = await supabase
-            .from('vault_members')
-            .update({ role: 'owner' })
-            .eq('vault_id', vaultId)
-            .eq('user_id', newOwnerUserId);
-
-        if (roleError) {
-            console.error('Error transferring ownership:', roleError);
-            // Rollback old owner
-            await supabase.from('vault_members').update({ role: 'owner' }).eq('vault_id', vaultId).eq('user_id', currentUser.id);
-            return { error: roleError };
-        }
-
-        // Update vault's owner_id
-        const { error: vaultError } = await supabase
-            .from('vaults')
-            .update({ owner_id: newOwnerUserId })
-            .eq('id', vaultId);
-
-        if (vaultError) {
-            console.error('Error updating vault owner:', vaultError);
-            return { error: vaultError };
+        if (error) {
+            console.error('Error transferring ownership:', error);
+            return { error };
         }
 
         // Update local state
-        setGroups(prev => prev.map(g => 
+        setGroups(prev => prev.map(g =>
             g.id === vaultId ? { ...g, owner_id: newOwnerUserId } : g
         ));
 
@@ -816,82 +652,22 @@ export const PlayerProvider = ({ children }) => {
             return { error: { message: 'Must be logged in to leave a vault.' } };
         }
 
-        // Find current user's membership
-        const currentMember = members.find(m => m.user_id === currentUser.id);
-        const vault = groups.find(g => g.id === vaultId);
-        const isOwner = currentMember?.role === 'owner' || vault?.owner_id === currentUser.id;
+        const { error } = await vault.leaveVault(vaultId, currentUser.id, members);
 
-        if (isOwner) {
-            // Get other members (excluding current user)
-            const otherMembers = members.filter(m => m.user_id !== currentUser.id);
-
-            if (otherMembers.length === 0) {
-                // No other members - delete the vault instead
-                return { error: { message: 'You are the only member. Delete the vault instead of leaving.' } };
-            }
-
-            // Role priority: admin > viewer
-            const rolePriority = { admin: 1, viewer: 2 };
-
-            // Sort members by:
-            // 1. Role priority (highest permission first)
-            // 2. Join date (earliest first - been in vault longest)
-            const sortedMembers = [...otherMembers].sort((a, b) => {
-                const priorityA = rolePriority[a.role] || 99;
-                const priorityB = rolePriority[b.role] || 99;
-                
-                if (priorityA !== priorityB) {
-                    return priorityA - priorityB;
-                }
-                
-                // Same role - sort by join date (earliest first)
-                const dateA = new Date(a.created_at);
-                const dateB = new Date(b.created_at);
-                return dateA - dateB;
-            });
-
-            const newOwner = sortedMembers[0];
-
-            // Update the new owner's role to 'owner' and vault's owner_id
-            const { error: newOwnerError } = await supabase
-                .from('vault_members')
-                .update({ role: 'owner' })
-                .eq('vault_id', vaultId)
-                .eq('user_id', newOwner.user_id);
-
-            if (newOwnerError) {
-                console.error('Error setting new owner:', newOwnerError);
-                return { error: newOwnerError };
-            }
-
-            const { error: vaultError } = await supabase
-                .from('vaults')
-                .update({ owner_id: newOwner.user_id })
-                .eq('id', vaultId);
-
-            if (vaultError) {
-                console.error('Error updating vault owner:', vaultError);
-                return { error: vaultError };
-            }
-        }
-
-        // Remove current user from vault_members
-        const { error: leaveError } = await supabase
-            .from('vault_members')
-            .delete()
-            .eq('vault_id', vaultId)
-            .eq('user_id', currentUser.id);
-
-        if (leaveError) {
-            console.error('Error leaving vault:', leaveError);
-            return { error: leaveError };
+        if (error) {
+            console.error('Error leaving vault:', error);
+            return { error };
         }
 
         // Remove from local state
         setGroups(prev => prev.filter(g => g.id !== vaultId));
-        
+
         // Navigate back to home
         switchView('all');
+
+        const currentMember = members.find(m => m.user_id === currentUser.id);
+        const vaultData = groups.find(g => g.id === vaultId);
+        const isOwner = currentMember?.role === 'owner' || vaultData?.owner_id === currentUser.id;
 
         return { error: null, transferred: isOwner };
     };
@@ -956,10 +732,7 @@ export const PlayerProvider = ({ children }) => {
         setAllSongs(prev => prev.filter(s => s.id !== songId));
 
         // Delete from database
-        const { error: dbError } = await supabase
-            .from('songs')
-            .delete()
-            .eq('id', songId);
+        const { error: dbError } = await song.deleteSong(songId);
 
         if (dbError) {
             console.error('Error deleting song from database:', dbError);
@@ -976,7 +749,7 @@ export const PlayerProvider = ({ children }) => {
                 const urlParts = fileUrl.split('/storage/v1/object/public/songs/');
                 if (urlParts.length > 1) {
                     const filePath = decodeURIComponent(urlParts[1]);
-                    await supabase.storage.from('songs').remove([filePath]);
+                    await storage.deleteFile('songs', filePath);
                 }
             } catch (storageError) {
                 console.warn('Could not delete file from storage:', storageError);
@@ -989,7 +762,7 @@ export const PlayerProvider = ({ children }) => {
 
     // Logout function
     const logout = async () => {
-        await supabase.auth.signOut();
+        await auth.signOut();
         // State will be cleared by the onAuthStateChange listener
     };
 
@@ -999,20 +772,16 @@ export const PlayerProvider = ({ children }) => {
         const fileName = `${vaultId}-${Date.now()}.${fileExt}`;
         const filePath = `vault-covers/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
-            .from('covers')
-            .upload(filePath, file);
+        const { error: uploadError } = await storage.uploadFile('covers', filePath, file);
 
         if (uploadError) {
             console.error('Error uploading cover:', uploadError);
             return { url: null, error: uploadError };
         }
 
-        const { data: urlData } = supabase.storage
-            .from('covers')
-            .getPublicUrl(filePath);
+        const publicUrl = storage.getPublicUrl('covers', filePath);
 
-        return { url: urlData.publicUrl, error: null };
+        return { url: publicUrl, error: null };
     };
 
     const filteredSongs = getFilteredSongs(); // For display in main list

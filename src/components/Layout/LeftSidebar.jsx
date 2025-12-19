@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Waves, Home, Search, Plus, FolderPlus, UserPlus, Disc } from 'lucide-react';
 import { usePlayer } from '../../context/PlayerContext';
 import clsx from 'clsx';
+import { getVaultGradient } from '../../utils/vaultColors';
 
 const Sidebar = ({ onCreateVault, onJoinVault }) => {
     const { groups, currentView, switchView } = usePlayer();
@@ -118,7 +119,7 @@ const Sidebar = ({ onCreateVault, onJoinVault }) => {
                                     {g.cover_url ? (
                                         <img src={g.cover_url} alt={g.name} className="w-8 h-8 rounded-lg object-cover shadow-sm group-hover:shadow-orange-500/20 transition-all" />
                                     ) : (
-                                        <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${g.color || 'from-dark-700 to-dark-600'} flex items-center justify-center text-xs font-bold uppercase text-white shadow-sm border border-white/5`}>
+                                        <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${getVaultGradient(g.id)} flex items-center justify-center text-xs font-bold uppercase text-white shadow-sm border border-white/5`}>
                                             {g.name.substring(0, 2)}
                                         </div>
                                     )}

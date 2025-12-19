@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, ChevronDown, Plus, Trash2, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { X, Upload, ChevronDown, Plus, Trash2, Image as ImageIcon, Loader2, AlertCircle, Check } from 'lucide-react';
 import { usePlayer } from '../context/PlayerContext';
 import { supabase } from '../supabaseClient';
 import * as tus from 'tus-js-client';
@@ -152,17 +152,21 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
             const fileName = `${Date.now()}-${audioFile.name}`;
             const { data: { session } } = await supabase.auth.getSession();
 
+            if (!session) {
+                throw new Error('You must be logged in to upload files');
+            }
+
             const upload = new tus.Upload(audioFile, {
                 endpoint: `${supabase.supabaseUrl}/storage/v1/upload/resumable`,
                 retryDelays: [0, 3000, 5000, 10000, 20000],
                 headers: {
-                    authorization: `Bearer ${supabase.supabaseKey}`,
+                    authorization: `Bearer ${session.access_token}`,
                     'x-upsert': 'true', // optional
                 },
                 uploadDataDuringCreation: true,
                 removeFingerprintOnSuccess: true, // Important for re-uploads
                 metadata: {
-                    bucketName: 'Music',
+                    bucketName: 'songs',
                     objectName: fileName,
                     contentType: audioFile.type,
                     cacheControl: 3600,
@@ -181,17 +185,34 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
                 onSuccess: async () => {
                     console.log('Upload finished:', upload.url);
 
+                    // Get fresh session to ensure auth context
+                    const { data: { session: currentSession } } = await supabase.auth.getSession();
+
+                    if (!currentSession?.user?.id) {
+                        console.error('No valid session found');
+                        setErrorMessage('Session expired. Please refresh and try again.');
+                        setUploadStatus('error');
+                        toast.error('Session expired. Please refresh and try again.');
+                        return;
+                    }
+
+                    // Explicitly set the session to ensure auth context for database operations
+                    await supabase.auth.setSession({
+                        access_token: currentSession.access_token,
+                        refresh_token: currentSession.refresh_token,
+                    });
+
                     // 2. Upload Cover Art (Standard Upload)
                     let coverUrl = null;
                     if (coverFile) {
                         const coverName = `covers/${Date.now()}-${coverFile.name}`;
                         const { data: coverData, error: coverError } = await supabase.storage
-                            .from('Music')
+                            .from('covers')
                             .upload(coverName, coverFile);
 
                         if (!coverError) {
                             const { data: { publicUrl } } = supabase.storage
-                                .from('Music')
+                                .from('covers')
                                 .getPublicUrl(coverName);
                             coverUrl = publicUrl;
                         }
@@ -199,7 +220,7 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
 
                     // 3. Get Public URL for Audio
                     const { data: { publicUrl: audioUrl } } = supabase.storage
-                        .from('Music')
+                        .from('songs')
                         .getPublicUrl(fileName);
 
                     // 4. Save Metadata to Database
@@ -207,42 +228,47 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
                     const durationParts = duration.split(':');
                     const durationSeconds = parseInt(durationParts[0]) * 60 + parseInt(durationParts[1] || 0);
 
+                    // Use direct fetch with auth headers since Supabase client may not pass auth in callbacks
+                    const songPayload = {
+                        title: trackTitle,
+                        artist: artists.filter(a => a.trim() !== '').join(', ') || null,
+                        file_url: audioUrl,
+                        cover_url: coverUrl,
+                        original_filename: audioFile.name,
+                        file_size_bytes: audioFile.size,
+                        duration_seconds: durationSeconds,
+                        uploaded_by: currentSession.user.id,
+                        processing_status: 'ready'
+                    };
+
                     const { data: songData, error: dbError } = await supabase
                         .from('songs')
-                        .insert([
-                            {
-                                title: trackTitle,
-                                artist: artists.filter(a => a.trim() !== '').join(', '),
-                                file_url: audioUrl,
-                                cover_url: coverUrl,
-                                original_filename: audioFile.name,
-                                file_size_bytes: audioFile.size,
-                                duration_seconds: durationSeconds,
-                                uploaded_by: session?.user?.id,
-                                processing_status: 'ready' // Mark as ready for now (can be 'pending' if processing is needed)
-                            }
-                        ])
-                        .select();
+                        .insert(songPayload)
+                        .select()
+                        .single();
 
                     if (dbError) {
                         console.error('Database Error:', dbError);
                         setErrorMessage('File uploaded but database save failed.');
                         setUploadStatus('error');
                         toast.error('File uploaded but database save failed.');
-                    } else if (songData?.[0]) {
+                    } else if (songData) {
                         // 5. Link song to vault via vault_songs junction table
                         const { error: vaultSongError } = await supabase
                             .from('vault_songs')
-                            .insert([{
+                            .insert({
                                 vault_id: selectedVault,
-                                song_id: songData[0].id,
-                                added_by: session?.user?.id
-                            }]);
+                                song_id: songData.id,
+                                added_by: currentSession.user.id
+                            });
 
                         if (vaultSongError) {
                             console.error('Vault Song Link Error:', vaultSongError);
                             // Rollback: Delete the song we just created
-                            await supabase.from('songs').delete().eq('id', songData[0].id);
+                            await supabase
+                                .from('songs')
+                                .delete()
+                                .eq('id', songData.id);
                             setErrorMessage('Failed to link song to vault.');
                             setUploadStatus('error');
                             toast.error('Failed to link song to vault.');
@@ -252,7 +278,7 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
                             // Notify parent about the new song for immediate UI update
                             if (onSongUploaded) {
                                 // Add vault_id for compatibility
-                                onSongUploaded({ ...songData[0], vault_id: selectedVault });
+                                onSongUploaded({ ...songData, vault_id: selectedVault });
                             }
                             setTimeout(() => {
                                 onClose();

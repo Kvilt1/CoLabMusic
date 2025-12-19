@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, X, Music, Clock, Play, BarChart2 } from 'lucide-react';
 import { usePlayer } from '../context/PlayerContext';
 import clsx from 'clsx';
+import { getVaultGradient } from '../utils/vaultColors';
 
 const SearchView = () => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -177,7 +178,7 @@ const SearchView = () => {
                                         <div className="text-sm text-gray-400">
                                             {group ? (
                                                 <span className="truncate group-hover:text-white transition flex items-center gap-2">
-                                                    <span className={`w-2 h-2 rounded-full inline-block bg-gradient-to-br ${group.color || 'from-gray-500 to-gray-600'}`}></span>
+                                                    <span className={`w-2 h-2 rounded-full inline-block bg-gradient-to-br ${getVaultGradient(group.id)}`}></span>
                                                     {group.name}
                                                 </span>
                                             ) : (

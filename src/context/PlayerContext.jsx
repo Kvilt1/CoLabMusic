@@ -538,20 +538,10 @@ export const PlayerProvider = ({ children }) => {
             return { error: { message: 'Must be logged in to create a vault' } };
         }
 
-        // Simple color cycle or random
-        const colors = [
-            { color: 'from-purple-600 to-indigo-600', text: 'text-purple-400', border: 'border-purple-500/30', bg_hex: '#2e1065' },
-            { color: 'from-blue-500 to-cyan-500', text: 'text-blue-400', border: 'border-blue-500/30', bg_hex: '#1e3a8a' },
-            { color: 'from-red-600 to-orange-600', text: 'text-red-400', border: 'border-red-500/30', bg_hex: '#7f1d1d' },
-            { color: 'from-emerald-600 to-teal-600', text: 'text-emerald-400', border: 'border-emerald-500/30', bg_hex: '#047857' },
-        ];
-        const randomStyle = colors[Math.floor(Math.random() * colors.length)];
-
         // Optimistic Update
         const optimisticVault = {
             id: `temp-${Date.now()}`,
             name: name,
-            color: randomStyle.color,
             created_at: new Date().toISOString(),
             owner_id: currentUser.id
         };
@@ -560,7 +550,6 @@ export const PlayerProvider = ({ children }) => {
         // Create vault with owner_id
         const { data, error } = await supabase.from('vaults').insert([{
             name: name,
-            color: randomStyle.color,
             owner_id: currentUser.id
         }]).select();
 
@@ -644,7 +633,7 @@ export const PlayerProvider = ({ children }) => {
             .from('vault_members')
             .select('*')
             .eq('vault_id', vaultId)
-            .order('created_at', { ascending: true });
+            .order('joined_at', { ascending: true });
         
         if (error) {
             console.error('Error fetching members:', error);
@@ -690,13 +679,12 @@ export const PlayerProvider = ({ children }) => {
         }
 
         const normalizedCode = code.toUpperCase().trim();
-        
-        // Find vault with this invite code
-        const { data: vault, error: findError } = await supabase
-            .from('vaults')
-            .select('*')
-            .eq('invite_code', normalizedCode)
-            .single();
+
+        // Find vault with this invite code using database function (bypasses RLS)
+        const { data: vaultData, error: findError } = await supabase
+            .rpc('get_vault_by_invite_code', { p_invite_code: normalizedCode });
+
+        const vault = vaultData?.[0] || null;
 
         if (findError || !vault) {
             return { vault: null, error: { message: 'Invalid invite code. Please check and try again.' } };
@@ -985,10 +973,10 @@ export const PlayerProvider = ({ children }) => {
         const fileUrl = song.file_url || song.url; // Support both new and legacy field names
         if (fileUrl) {
             try {
-                const urlParts = fileUrl.split('/storage/v1/object/public/music/');
+                const urlParts = fileUrl.split('/storage/v1/object/public/songs/');
                 if (urlParts.length > 1) {
                     const filePath = decodeURIComponent(urlParts[1]);
-                    await supabase.storage.from('music').remove([filePath]);
+                    await supabase.storage.from('songs').remove([filePath]);
                 }
             } catch (storageError) {
                 console.warn('Could not delete file from storage:', storageError);
@@ -1012,7 +1000,7 @@ export const PlayerProvider = ({ children }) => {
         const filePath = `vault-covers/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
-            .from('music')
+            .from('covers')
             .upload(filePath, file);
 
         if (uploadError) {
@@ -1021,7 +1009,7 @@ export const PlayerProvider = ({ children }) => {
         }
 
         const { data: urlData } = supabase.storage
-            .from('music')
+            .from('covers')
             .getPublicUrl(filePath);
 
         return { url: urlData.publicUrl, error: null };

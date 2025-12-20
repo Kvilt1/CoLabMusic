@@ -5,7 +5,7 @@ import SearchView from '../SearchView';
 import VaultSettings from '../VaultSettings';
 import UserMenu from '../UserMenu';
 import clsx from 'clsx';
-import { usePlayer } from '../../context/PlayerContext';
+import { useApp } from '../../context';
 import { Upload } from 'lucide-react';
 
 const MainView = ({ onUpload }) => {
@@ -24,7 +24,7 @@ const MainView = ({ onUpload }) => {
         }
     }, []);
 
-    const { currentView } = usePlayer();
+    const { currentView } = useApp();
 
     // Show search view when in search mode
     if (currentView === 'search') {

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { usePlayer } from '../context/PlayerContext';
-import { 
-    ArrowLeft, Save, Trash2, Users, Image as ImageIcon, X, Loader2, Copy, Check, 
-    AlertCircle, RefreshCw, Crown, Shield, User, UserMinus, ChevronDown, 
+import { useApp, useVaults } from '../context';
+import { useServices } from '../services';
+import {
+    ArrowLeft, Save, Trash2, Users, Image as ImageIcon, X, Loader2, Copy, Check,
+    AlertCircle, RefreshCw, Crown, Shield, User, UserMinus, ChevronDown,
     ArrowRightLeft, LogOut, MoreVertical, Info
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
@@ -16,25 +17,13 @@ const ROLES = {
 };
 
 const VaultSettings = () => {
-    const { 
-        viewData, 
-        groups, 
-        switchView, 
-        updateVault, 
-        deleteVault,
-        regenerateInviteCode,
-        uploadVaultCover,
-        getVaultMembers,
-        updateMemberRole,
-        removeMember,
-        transferOwnership,
-        leaveVault,
-        currentUser
-    } = usePlayer();
+    const { viewData, switchView, currentUser } = useApp();
+    const { vaults, updateVault, deleteVault } = useVaults();
+    const { vaultService } = useServices();
     const toast = useToast();
-    
+
     const vaultId = viewData?.vaultId;
-    const vault = groups.find(g => g.id === vaultId);
+    const vault = vaults.find(g => g.id === vaultId);
 
     const [activeTab, setActiveTab] = useState('edit');
     const [saving, setSaving] = useState(false);
@@ -87,11 +76,11 @@ const VaultSettings = () => {
     const fetchMembers = useCallback(async () => {
         if (!vaultId) return;
         setLoadingMembers(true);
-        
-        const realMembers = await getVaultMembers(vaultId);
+
+        const realMembers = await vaultService.getVaultMembers(vaultId);
         setMembers(realMembers);
         setLoadingMembers(false);
-    }, [vaultId, getVaultMembers]);
+    }, [vaultId, vaultService]);
 
     useEffect(() => {
         // Fetch members for both members tab and danger tab (needed for leave vault)
@@ -118,7 +107,7 @@ const VaultSettings = () => {
         let coverUrl = vault.cover_url;
 
         if (coverFile) {
-            const { url, error: uploadError } = await uploadVaultCover(vaultId, coverFile);
+            const { url, error: uploadError } = await vaultService.uploadVaultCover(vaultId, coverFile);
             if (uploadError) {
                 setError('Failed to upload cover image');
                 toast.error('Failed to upload cover image.');
@@ -165,7 +154,7 @@ const VaultSettings = () => {
 
     const handleRegenerateCode = async () => {
         setRegenerating(true);
-        const { error } = await regenerateInviteCode(vaultId);
+        const { error } = await vaultService.regenerateInviteCode(vaultId);
         if (error) {
             setError('Failed to regenerate invite code');
             toast.error('Failed to regenerate invite code.');
@@ -193,7 +182,7 @@ const VaultSettings = () => {
 
     const handleRoleChange = async (memberId, newRole) => {
         setActionLoading(memberId);
-        const { error } = await updateMemberRole(memberId, newRole);
+        const { error } = await vaultService.updateMemberRole(memberId, newRole);
         if (!error) {
             // Update locally on success
             setMembers(prev => prev.map(m => m.id === memberId ? { ...m, role: newRole } : m));
@@ -207,7 +196,7 @@ const VaultSettings = () => {
 
     const handleKickMember = async (memberId) => {
         setActionLoading(memberId);
-        const { error } = await removeMember(memberId);
+        const { error } = await vaultService.removeMember(memberId);
         if (!error) {
             // Remove locally on success
             setMembers(prev => prev.filter(m => m.id !== memberId));
@@ -224,7 +213,7 @@ const VaultSettings = () => {
         if (!member) return;
 
         setActionLoading(memberId);
-        const { error } = await transferOwnership(vaultId, member.user_id);
+        const { error } = await vaultService.transferOwnership(vaultId, member.user_id);
 
         if (!error) {
             // Update roles locally on success
@@ -243,7 +232,7 @@ const VaultSettings = () => {
 
     const handleLeaveVault = async () => {
         setLeaving(true);
-        const { error } = await leaveVault(vaultId, members);
+        const { error } = await vaultService.leaveVault(vaultId, members, switchView);
         setLeaving(false);
         if (error) {
             setError(error.message);

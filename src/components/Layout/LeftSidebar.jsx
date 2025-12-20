@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Waves, Home, Search, Plus, FolderPlus, UserPlus, Disc } from 'lucide-react';
-import { usePlayer } from '../../context/PlayerContext';
+import { useApp, useVaults } from '../../context';
 import clsx from 'clsx';
 import { getVaultGradient } from '../../utils/vaultColors';
 
 const Sidebar = ({ onCreateVault, onJoinVault }) => {
-    const { groups, currentView, switchView } = usePlayer();
+    const { currentView, switchView } = useApp();
+    const { vaults: groups } = useVaults();
     const [showMenu, setShowMenu] = useState(false);
     const menuRef = useRef(null);
 

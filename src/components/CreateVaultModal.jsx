@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { X, Image as ImageIcon, Check } from 'lucide-react';
-import { usePlayer } from '../context/PlayerContext';
+import { useVaults } from '../context';
 import { useToast } from '../context/ToastContext';
 
 const CreateVaultModal = ({ isOpen, onClose }) => {
-    const { addVault } = usePlayer();
+    const { createVault } = useVaults();
     const toast = useToast();
     const [name, setName] = useState('');
     const [coverPreview, setCoverPreview] = useState(null);
@@ -26,7 +26,7 @@ const CreateVaultModal = ({ isOpen, onClose }) => {
         e.preventDefault();
         if (!name.trim()) return;
 
-        const { error } = await addVault(name, coverPreview);
+        const { error } = await createVault(name, coverPreview);
         if (error) {
             toast.error(error.message || 'Failed to create vault.');
             return;

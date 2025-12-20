@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Users, Loader2, Check, AlertCircle } from 'lucide-react';
-import { usePlayer } from '../context/PlayerContext';
+import { useApp } from '../context';
+import { useServices } from '../services';
 import { useToast } from '../context/ToastContext';
 
 const JoinVaultModal = ({ isOpen, onClose }) => {
-    const { joinVaultByCode, switchView } = usePlayer();
+    const { switchView } = useApp();
+    const { vaultService } = useServices();
     const toast = useToast();
     const [code, setCode] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
@@ -75,7 +77,7 @@ const JoinVaultModal = ({ isOpen, onClose }) => {
         setLoading(true);
         setError(null);
 
-        const { vault, error: joinError } = await joinVaultByCode(fullCode);
+        const { vault, error: joinError } = await vaultService.joinVaultByCode(fullCode);
 
         setLoading(false);
 

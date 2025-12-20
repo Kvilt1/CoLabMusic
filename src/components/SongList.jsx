@@ -1,6 +1,7 @@
 import React from 'react';
 import { Play, BarChart2, Music, Search, Clock, Calendar } from 'lucide-react';
-import { usePlayer } from '../context/PlayerContext';
+import { useApp, useVaults, useAudioContext } from '../context';
+import { useSongOperations } from '../hooks';
 import SongMenu from './SongMenu';
 import clsx from 'clsx';
 
@@ -40,7 +41,13 @@ const formatFullDate = (dateString) => {
 };
 
 const SongList = ({ onUpload }) => {
-    const { songs, isPlaying, currentSong, playSong, currentView, groups, switchView, listSearchQuery, setListSearchQuery } = usePlayer();
+    const { currentView, switchView, listSearchQuery, setListSearchQuery } = useApp();
+    const { vaults, allSongs } = useVaults();
+    const { isPlaying, currentSong, playSong } = useAudioContext();
+    const songOps = useSongOperations();
+
+    // Compute filtered songs for current view
+    const songs = songOps.getFilteredSongs(allSongs, currentView, listSearchQuery);
 
     return (
         <div className="flex flex-col pb-40 px-8">
@@ -88,7 +95,7 @@ const SongList = ({ onUpload }) => {
             ) : (
                 <div className="space-y-1">
                     {songs.map((song, index) => {
-                        const group = groups.find(g => g.id === song.vault_id);
+                        const group = vaults.find(g => g.id === song.vault_id);
                         const isCurrent = currentSong?.id === song.id;
 
                         // Format duration from seconds to M:SS
@@ -102,7 +109,7 @@ const SongList = ({ onUpload }) => {
                         return (
                             <div
                                 key={song.id}
-                                onClick={() => playSong(song)}
+                                onClick={() => playSong(song, songs)}
                                 className={clsx(
                                     "group grid grid-cols-[40px_4fr_2fr_1fr_40px] gap-4 px-4 py-3 rounded-xl transition items-center text-sm cursor-pointer relative border border-transparent",
                                     isCurrent

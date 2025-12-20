@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { LogOut, User, ChevronDown } from 'lucide-react';
-import { usePlayer } from '../context/PlayerContext';
+import { useApp } from '../context';
 import clsx from 'clsx';
 
 const getUserInitials = (user) => {
@@ -13,7 +13,7 @@ const getUserInitials = (user) => {
 };
 
 const UserMenu = () => {
-    const { currentUser, logout } = usePlayer();
+    const { currentUser, logout } = useApp();
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef(null);
 

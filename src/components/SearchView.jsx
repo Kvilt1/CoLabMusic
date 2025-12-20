@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, X, Music, Clock, Play, BarChart2 } from 'lucide-react';
-import { usePlayer } from '../context/PlayerContext';
+import { useVaults, useAudioContext } from '../context';
 import clsx from 'clsx';
 import { getVaultGradient } from '../utils/vaultColors';
 
 const SearchView = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const searchInputRef = useRef(null);
-    const { playSong, currentSong, isPlaying, groups, togglePlay, allSongs } = usePlayer();
+    const { vaults, allSongs } = useVaults();
+    const { playSong, currentSong, isPlaying, togglePlay } = useAudioContext();
 
     // Auto-focus search input when component mounts
     useEffect(() => {
@@ -38,7 +39,7 @@ const SearchView = () => {
         if (currentSong?.id === song.id) {
             togglePlay();
         } else {
-            playSong(song);
+            playSong(song, searchResults);
         }
     };
 
@@ -102,7 +103,7 @@ const SearchView = () => {
                         {/* Results List */}
                         <div className="space-y-1">
                             {searchResults.map((song, index) => {
-                                const group = groups.find(g => g.id === song.vault_id);
+                                const group = vaults.find(g => g.id === song.vault_id);
                                 const isCurrent = currentSong?.id === song.id;
 
                                 // Format duration from seconds to M:SS

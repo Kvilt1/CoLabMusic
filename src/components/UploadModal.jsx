@@ -1,31 +1,32 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, ChevronDown, Plus, Trash2, Image as ImageIcon, Loader2, AlertCircle, Check } from 'lucide-react';
-import { usePlayer } from '../context/PlayerContext';
+import { useApp, useVaults } from '../context';
 import { supabase } from '../supabaseClient';
 import * as tus from 'tus-js-client';
 import { useToast } from '../context/ToastContext';
 import clsx from 'clsx';
 
 const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
-    const { groups, currentView } = usePlayer();
+    const { currentView } = useApp();
+    const { vaults } = useVaults();
     const toast = useToast();
     const [artists, setArtists] = useState(['']);
     const [coverFile, setCoverFile] = useState(null);
     const [coverPreview, setCoverPreview] = useState(null);
 
     const [selectedVault, setSelectedVault] = useState('');
-    
+
     // Check if user has any vaults to upload to
-    const hasVaults = groups.length > 0;
-    
-    // Sync selectedVault when groups load or change
+    const hasVaults = vaults.length > 0;
+
+    // Sync selectedVault when vaults load or change
     useEffect(() => {
-        if (groups.length > 0 && !selectedVault) {
+        if (vaults.length > 0 && !selectedVault) {
             // Default to current view if it's a specific vault, otherwise first available
-            const defaultVault = groups.find(g => g.id === currentView)?.id || groups[0]?.id || '';
+            const defaultVault = vaults.find(g => g.id === currentView)?.id || vaults[0]?.id || '';
             setSelectedVault(defaultVault);
         }
-    }, [groups, currentView, selectedVault]);
+    }, [vaults, currentView, selectedVault]);
 
     // Audio State
     const [audioFile, setAudioFile] = useState(null);
@@ -435,8 +436,8 @@ const UploadModal = ({ isOpen, onClose, onSongUploaded }) => {
                                         onChange={(e) => setSelectedVault(e.target.value)}
                                         className="w-full bg-dark-900 border border-white/10 rounded-xl p-3 text-sm focus:border-orange-500 focus:outline-none text-white appearance-none cursor-pointer"
                                     >
-                                        {groups.map(group => (
-                                            <option key={group.id} value={group.id}>{group.name}</option>
+                                        {vaults.map(vault => (
+                                            <option key={vault.id} value={vault.id}>{vault.name}</option>
                                         ))}
                                     </select>
                                     <ChevronDown className="absolute right-3 top-3.5 w-4 h-4 text-gray-500 pointer-events-none" />

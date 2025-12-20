@@ -1,9 +1,11 @@
 import React from 'react';
-import { usePlayer } from '../../context/PlayerContext';
-import { Music2, X, ListMusic, Trash2 } from 'lucide-react';
+import { useApp, useVaults, useAudioContext } from '../../context';
+import { Music2, X, ListMusic, Trash2, Play } from 'lucide-react';
 import clsx from 'clsx';
 
 const RightSidebar = () => {
+    const { currentView } = useApp();
+    const { vaults } = useVaults();
     const {
         currentSong,
         queue,
@@ -11,10 +13,13 @@ const RightSidebar = () => {
         isQueueOpen,
         toggleQueue,
         playSong,
-        isPlaying,
-        currentGroup,
-        currentView
-    } = usePlayer();
+        isPlaying
+    } = useAudioContext();
+
+    // Compute currentGroup
+    const currentGroup = currentView !== 'all' && currentView !== 'search' && currentView !== 'vault-settings'
+        ? vaults.find(v => v.id === currentView)
+        : null;
 
     if (!isQueueOpen) return null;
 
@@ -83,7 +88,7 @@ const RightSidebar = () => {
                                 <div
                                     key={`uq-${song.id}-${i}`}
                                     className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition group cursor-pointer border border-transparent hover:border-white/5"
-                                    onClick={() => playSong(song)}
+                                    onClick={() => playSong(song, userQueue)}
                                 >
                                     <div className="w-10 h-10 bg-dark-800 rounded-lg flex items-center justify-center flex-shrink-0 relative overflow-hidden">
                                         {(song.cover_url || song.cover) ? (
@@ -116,7 +121,7 @@ const RightSidebar = () => {
                             {nextInContext.map((song, i) => (
                                 <div
                                     key={`cq-${song.id}-${i}`}
-                                    onClick={() => playSong(song)}
+                                    onClick={() => playSong(song, queue)}
                                     className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition group cursor-pointer border border-transparent hover:border-white/5 opacity-70 hover:opacity-100"
                                 >
                                     <div className="w-10 h-10 bg-dark-800 rounded-lg flex items-center justify-center flex-shrink-0 relative overflow-hidden">

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MoreHorizontal, ListPlus, Download, Trash2 } from 'lucide-react';
-import { usePlayer } from '../context/PlayerContext';
+import { useApp, useVaults, useAudioContext } from '../context';
+import { useSongOperations } from '../hooks';
 import ConfirmDialog from './ConfirmDialog';
 import { useToast } from '../context/ToastContext';
 
@@ -8,13 +9,16 @@ const SongMenu = ({ song }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const menuRef = useRef(null);
-    const { addToQueue, deleteSong, currentUser, groups } = usePlayer();
+    const { currentUser } = useApp();
+    const { vaults } = useVaults();
+    const { addToQueue } = useAudioContext();
+    const songOps = useSongOperations();
     const toast = useToast();
 
     // Check if user can delete this song (owner or admin of the vault)
     const canDelete = () => {
         if (!currentUser || !song.vault_id) return false;
-        const vault = groups.find(g => g.id === song.vault_id);
+        const vault = vaults.find(g => g.id === song.vault_id);
         if (!vault) return false;
         // Owner of the vault can always delete
         if (vault.owner_id === currentUser.id) return true;
@@ -63,7 +67,7 @@ const SongMenu = ({ song }) => {
     };
 
     const handleConfirmDelete = async () => {
-        const { error } = await deleteSong(song.id);
+        const { error } = await songOps.deleteSong(song.id);
         if (error) {
             console.error('Failed to delete song:', error);
             toast.error(error.message || 'Failed to delete song.');

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Music2, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, ListMusic, Volume2, Maximize2 } from 'lucide-react';
-import { usePlayer } from '../../context/PlayerContext';
+import { useAudioContext } from '../../context';
 import clsx from 'clsx';
 
 const PlayerBar = () => {
@@ -21,7 +21,7 @@ const PlayerBar = () => {
         toggleQueue,
         repeatMode,
         toggleRepeat
-    } = usePlayer();
+    } = useAudioContext();
 
     const [isDragging, setIsDragging] = React.useState(false);
     const [dragValue, setDragValue] = React.useState(0);

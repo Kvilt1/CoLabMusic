@@ -1,11 +1,21 @@
 import React, { useMemo, useState } from 'react';
 import { Music, Play, Shuffle, Search, X, Settings } from 'lucide-react';
-import { usePlayer } from '../context/PlayerContext';
+import { useApp, useVaults, useAudioContext } from '../context';
 import { getVaultBgHex, getVaultGradient } from '../utils/vaultColors';
+import { useSongOperations } from '../hooks';
+import { useServices } from '../services';
 
 const Hero = () => {
-    const { currentView, currentGroup, songs, playSong, toggleShuffle, isShuffled, setListSearchQuery, listSearchQuery, switchView } = usePlayer();
+    const { currentView, listSearchQuery, setListSearchQuery, switchView } = useApp();
+    const { vaults, allSongs } = useVaults();
+    const { playSong, toggleShuffle, isShuffled } = useAudioContext();
+    const services = useServices();
+    const songOps = useSongOperations(services);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+    // Get current vault and filtered songs
+    const currentGroup = currentView === 'all' ? null : vaults.find(v => v.id === currentView);
+    const songs = songOps.getFilteredSongs(allSongs, currentView, listSearchQuery);
 
     // Safety check: if we are in a vault view but currentGroup isn't loaded yet, don't crash
     if (currentView !== 'all' && !currentGroup) {
@@ -25,9 +35,9 @@ const Hero = () => {
         if (songs.length > 0) {
             if (isShuffled) {
                 const randomIndex = Math.floor(Math.random() * songs.length);
-                playSong(songs[randomIndex]);
+                playSong(songs[randomIndex], songs);
             } else {
-                playSong(songs[0]);
+                playSong(songs[0], songs);
             }
         }
     };
